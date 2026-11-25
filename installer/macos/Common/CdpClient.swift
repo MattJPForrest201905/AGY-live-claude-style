@@ -381,6 +381,20 @@ enum CdpHelper {
         return nil
     }
 
+    private static func isAntigravityPageUrl(_ pageUrl: String) -> Bool {
+        if pageUrl.isEmpty { return true }
+        let lower = pageUrl.lowercased()
+        let blocked = ["devtools://", "data:", "about:", "chrome://", "chrome-extension://", "edge://", "blob:"]
+        for prefix in blocked {
+            if lower.hasPrefix(prefix) { return false }
+        }
+        if lower.hasPrefix("http://") || lower.hasPrefix("https://") {
+            guard let host = URL(string: pageUrl)?.host?.lowercased() else { return false }
+            return host == "127.0.0.1" || host == "localhost" || host == "::1" || host == "[::1]"
+        }
+        return true
+    }
+
     static func listPages(port: Int) throws -> [CdpPageInfo] {
         guard let url = URL(string: "http://127.0.0.1:\(port)/json/list") else {
             throw CdpError("Invalid CDP HTTP URL")
@@ -422,7 +436,7 @@ enum CdpHelper {
             let wsUrl = t["webSocketDebuggerUrl"]?.stringValue ?? ""
             let pageUrl = t["url"]?.stringValue ?? ""
             let lowerUrl = pageUrl.lowercased()
-            let isPage = type == "page"
+            let isPage = type == "page" && isAntigravityPageUrl(pageUrl)
             let isSwarmSidecar = type == "iframe" && lowerUrl.hasPrefix("plugin://swarm--")
             if (isPage || isSwarmSidecar) && !wsUrl.isEmpty && !lowerUrl.hasPrefix("devtools://") && !lowerUrl.hasPrefix("data:") {
                 let id = t["id"]?.stringValue ?? wsUrl

@@ -435,6 +435,32 @@ namespace AgyClaudeStyle
             return null;
         }
 
+        private static bool IsAntigravityPageUrl(string pageUrl)
+        {
+            if (string.IsNullOrEmpty(pageUrl)) return true;
+            string lower = pageUrl.ToLowerInvariant();
+            if (lower.StartsWith("devtools://", StringComparison.Ordinal) ||
+                lower.StartsWith("data:", StringComparison.Ordinal) ||
+                lower.StartsWith("about:", StringComparison.Ordinal) ||
+                lower.StartsWith("chrome://", StringComparison.Ordinal) ||
+                lower.StartsWith("chrome-extension://", StringComparison.Ordinal) ||
+                lower.StartsWith("edge://", StringComparison.Ordinal) ||
+                lower.StartsWith("blob:", StringComparison.Ordinal))
+            {
+                return false;
+            }
+            if (lower.StartsWith("http://", StringComparison.Ordinal) ||
+                lower.StartsWith("https://", StringComparison.Ordinal))
+            {
+                Uri uri;
+                if (!Uri.TryCreate(pageUrl, UriKind.Absolute, out uri)) return false;
+                if (uri.IsLoopback) return true;
+                string host = (uri.Host ?? "").ToLowerInvariant();
+                return host == "127.0.0.1" || host == "localhost" || host == "::1" || host == "[::1]";
+            }
+            return true;
+        }
+
         public static async Task<List<CdpPageInfo>> ListPagesAsync(int port)
         {
             string url = string.Format("http://127.0.0.1:{0}/json/list", port);
@@ -448,7 +474,7 @@ namespace AgyClaudeStyle
                 string type = GetStr(t, "type");
                 string wsUrl = GetStr(t, "webSocketDebuggerUrl");
                 string pageUrl = GetStr(t, "url") ?? "";
-                bool isPage = type == "page";
+                bool isPage = type == "page" && IsAntigravityPageUrl(pageUrl);
                 bool isSwarmSidecar = type == "iframe" &&
                     pageUrl.StartsWith("plugin://swarm--", StringComparison.OrdinalIgnoreCase);
                 if ((isPage || isSwarmSidecar) &&

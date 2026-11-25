@@ -4969,6 +4969,54 @@ test('Claude FM live background, YouTube mode, top-bar music controls, mascot mu
     assert.equal(home.querySelector('.ag-cs-claude-fm-host'), null);
     assert.equal(html.hasAttribute('data-ag-cs-fm-scene'), false);
     assert.equal(sandbox.globalThis.__agCsClaudeFmCore, undefined);
+
+    // Target URL filter & DOM workbench guard exclude built-in browser web pages
+    assert.equal(
+      cdp.isInjectableTarget({ type: 'page', url: 'https://127.0.0.1:62297/c/123', webSocketDebuggerUrl: 'ws://127.0.0.1:1/p' }),
+      true
+    );
+    assert.equal(
+      cdp.isInjectableTarget({ type: 'iframe', url: 'plugin://swarm--swarm_board-1/', webSocketDebuggerUrl: 'ws://127.0.0.1:1/f' }),
+      true
+    );
+    assert.equal(
+      cdp.isInjectableTarget({ type: 'page', url: 'https://github.com/MattJPForrest201905/AGY-live-claude-style', webSocketDebuggerUrl: 'ws://127.0.0.1:1/g' }),
+      false
+    );
+    assert.equal(
+      cdp.isInjectableTarget({ type: 'page', url: 'about:blank', webSocketDebuggerUrl: 'ws://127.0.0.1:1/a' }),
+      false
+    );
+
+    const webHtml = makeNode('html');
+    const webHead = makeNode('head');
+    const webBody = makeNode('body', { className: 'logged-in' });
+    webBody.appendChild(makeNode('div', { id: 'app' }));
+    webHtml.appendChild(webHead);
+    webHtml.appendChild(webBody);
+    const webSandbox = {
+      ...sandbox,
+      window: null,
+      globalThis: null,
+      document: {
+        documentElement: webHtml,
+        head: webHead,
+        body: webBody,
+        hidden: false,
+        createElement: (t) => makeNode(t),
+        getElementById: (id) => webHtml.querySelector('#' + id),
+        querySelector: (s) => webHtml.querySelector(s),
+        querySelectorAll: (s) => webHtml.querySelectorAll(s),
+        addEventListener() {},
+        removeEventListener() {},
+      },
+      localStorage: { _m: {}, getItem(k) { return this._m[k] || null; }, setItem(k, v) { this._m[k] = String(v); } },
+    };
+    webSandbox.window = webSandbox;
+    webSandbox.globalThis = webSandbox;
+    vm.runInNewContext(cdp.buildInjectExpression({ ...cdp.DEFAULT_CONFIG, language: 'en', claudeFmBar: true }), webSandbox);
+    assert.equal(webBody.querySelector('.ag-cs-fm-bar'), null, 'must not mount floating radio bar on external web page DOM');
+    vm.runInNewContext(cdp.REMOVE_EXPRESSION, webSandbox);
   } finally {
     for (const id of timers) clearTimeout(id);
   }

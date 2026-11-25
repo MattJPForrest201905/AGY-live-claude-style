@@ -143,12 +143,37 @@ function readPort() {
 
 const SWARM_SIDECAR_URL_PREFIX = 'plugin://swarm--';
 
+function isAntigravityPageUrl(url) {
+  if (!url || typeof url !== 'string') return true;
+  const lower = url.toLowerCase();
+  if (
+    lower.startsWith('devtools://') ||
+    lower.startsWith('data:') ||
+    lower.startsWith('about:') ||
+    lower.startsWith('chrome://') ||
+    lower.startsWith('chrome-extension://') ||
+    lower.startsWith('edge://') ||
+    lower.startsWith('blob:')
+  ) {
+    return false;
+  }
+  if (lower.startsWith('http://') || lower.startsWith('https://')) {
+    try {
+      const host = new URL(url).hostname.toLowerCase();
+      return host === '127.0.0.1' || host === 'localhost' || host === '[::1]' || host === '::1';
+    } catch {
+      return false;
+    }
+  }
+  return true;
+}
+
 function isInjectableTarget(t) {
   if (!t || !t.webSocketDebuggerUrl) return false;
   const url = typeof t.url === 'string' ? t.url : '';
   const lowerUrl = url.toLowerCase();
   if (lowerUrl.startsWith('devtools://') || lowerUrl.startsWith('data:')) return false;
-  if (t.type === 'page') return true;
+  if (t.type === 'page') return isAntigravityPageUrl(url);
   if (t.type === 'iframe' && lowerUrl.startsWith(SWARM_SIDECAR_URL_PREFIX)) return true;
   return false;
 }

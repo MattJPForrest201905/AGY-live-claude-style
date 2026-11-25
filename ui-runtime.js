@@ -1928,8 +1928,17 @@
     }
   }
 
+  function isAntigravityWorkbenchDom() {
+    if (typeof document === 'undefined' || typeof document.querySelector !== 'function') return false;
+    return Boolean(
+      document.querySelector(
+        '[data-testid="title-menu-bar"], .agy-shell, .agy-sheet, .agy-home, [data-testid="agent-input-box"], [data-testid="conversation-view"], [data-testid="sidebar-split"]'
+      )
+    );
+  }
+
   function syncClaudeFmBar() {
-    if (cfg.claudeFmBar === false || !document.body) {
+    if (cfg.claudeFmBar === false || !document.body || !isAntigravityWorkbenchDom()) {
       if (fmState.bar) unmountClaudeFmBar();
       return;
     }
