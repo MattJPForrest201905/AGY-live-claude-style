@@ -1819,6 +1819,11 @@
     }
     fmState.volume = claudeFmCore ? claudeFmCore.clampVolume(cfg.claudeFmVolume) : fmState.volume;
     if (fmState.bar && fmState.bar.isConnected) {
+      const titleHost = document.querySelector('[data-testid="title-menu-bar"]');
+      if (titleHost && fmState.bar.parentElement !== titleHost) {
+        fmState.bar.setAttribute('data-anchored', 'titlebar');
+        titleHost.appendChild(fmState.bar);
+      }
       refreshClaudeFmBarLabels();
       return;
     }
@@ -1937,7 +1942,14 @@
     bar.appendChild(motionBtn);
     bar.appendChild(ytLink);
 
-    document.body.appendChild(bar);
+    const titleHost = document.querySelector('[data-testid="title-menu-bar"]');
+    if (titleHost) {
+      bar.setAttribute('data-anchored', 'titlebar');
+      titleHost.appendChild(bar);
+    } else {
+      bar.setAttribute('data-anchored', 'body');
+      document.body.appendChild(bar);
+    }
     fmState.bar = bar;
     refreshClaudeFmBarLabels();
   }

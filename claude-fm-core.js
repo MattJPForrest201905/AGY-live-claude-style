@@ -167,117 +167,124 @@
     return top + (bot - top) * sy;
   }
 
-  // Pre-authored asymmetric ASCII cloud clusters inspired by Claude FM
+  // Pre-authored asymmetric slashed ASCII cloud clusters inspired by Claude FM (tRsQsTMvPNg)
   const CLOUD_BANKS = [
     {
-      xFrac: 0.44,
-      yFrac: 0.04,
-      speed: 0.35,
+      xFrac: 0.42,
+      yFrac: 0.03,
+      speed: 0.34,
       rows: [
-        '       .-""-.          ',
-        '    .-(      )-.       ',
-        '  .(  .:/  \\:.  ).     ',
-        ' /   /  \\  /  \\   \\    ',
-        '|   :  • )( •  :   |   ',
-        ' \\  \\  /  \\  /  /     ',
-        "  '._'-.__.-'_.'  <>   ",
-        '      `--..--`         ',
+        "          .-'/\\        ",
+        "         /  | '|       ",
+        "    ..'  /   :/ |      ",
+        "   /  :   ..  | )      ",
+        " .-|  /  /\\  /  /      ",
+        " '--\\/--'//\\-'_/       ",
+        "    '--'  \\  \\         ",
+        "           '-'         ",
       ],
     },
     {
-      xFrac: 0.08,
-      yFrac: 0.17,
+      xFrac: 0.56,
+      yFrac: 0.11,
+      speed: 0.29,
+      rows: [
+        "   ,-\\  /\\             ",
+        "  </  \\/  \\            ",
+        "   \\  /\\  /            ",
+        "    '-\\/-'             ",
+      ],
+    },
+    {
+      xFrac: 0.07,
+      yFrac: 0.14,
       speed: 0.24,
       rows: [
-        '     _.--.._           ',
-        '  .-`  ::   `-.        ',
-        ' /  .. /  \\ ..  \\      ',
-        '(__.__.-==-.__.__)     ',
+        "  .  -  _..--/         ",
+        "   /((<\\   .:| \\       ",
+        " </  /\\ \\  /\\  \\ /\\    ",
+        "   '-/--\\-'--\\--'/     ",
       ],
     },
     {
-      xFrac: 0.67,
-      yFrac: 0.19,
-      speed: 0.28,
+      xFrac: 0.64,
+      yFrac: 0.17,
+      speed: 0.27,
       rows: [
-        '     .-.               ',
-        '   ./ • \\  .-.         ',
-        '  (  / \\ )/ • )        ',
-        "   '._.-' '._.'  ..    ",
+        "      .>  --/          ",
+        "   ./||| -/>  -/•      ",
+        "  /-///-/.//-- <>--    ",
+        "    ---/--             ",
+      ],
+    },
+    {
+      xFrac: 0.38,
+      yFrac: 0.27,
+      speed: 0.21,
+      rows: [
+        "  -// •   /  /-•/      ",
+        " •/ //  //--/   /-/    ",
       ],
     },
     {
       xFrac: 0.87,
-      yFrac: 0.06,
+      yFrac: 0.05,
       speed: 0.19,
       rows: [
-        '  .--.                 ',
-        ' ( :: )-.              ',
-        "  '--'._.'             ",
-      ],
-    },
-    {
-      xFrac: 0.36,
-      yFrac: 0.28,
-      speed: 0.21,
-      rows: [
-        '  .-=-.   ..  -=≡-     ',
-        ' (  •  )-.__.-.        ',
+        "   --/-/               ",
+        "  /•-•/-/ \\•           ",
+        "  //  /-/              ",
       ],
     },
   ];
 
-  // 22x17 pixel-art matrix for Clawd traveler (facing right)
+  // 22x16 pixel-art matrix for Clawd traveler (facing right, closely matched to tRsQsTMvPNg)
   // Legend:
   // '.' transparent
   // 'O' bedroll (#B38046)
   // 'P' backpack (#7E522B)
   // 'D' dark leather / strap / staff outline (#4E3118)
-  // 'S' walking staff (#5C3B1E)
   // 'B' terracotta body (#D97757)
   // 'R' terracotta shade (#BD6347)
   // 'E' eye (#111110)
-  // 'H' headphones band/shell (only when audioActive)
-  // 'Q' headphone earpad accent (only when audioActive)
   const MASCOT_BASE = [
-    '.....OOOOOOOOO........',
-    '....ODDDDDDDDDO.......',
-    '...PPBBBBBBBBBBBB.....',
-    '..PPDBBBBBBBBBBBBR....',
-    '..PPDBBBBBBBBEBBBE....',
-    '..PPDBBBBBBBBEBBBE....',
-    '..PPDBBBBBBBBBBBBBB...',
-    '..PPDBBBBBBBBBBBBBBB..',
-    '..PPDBBBBBBBBBBBBRR...',
-    '...PDRRRRRRRRRRRRR....',
-    '....RBBBBBBBBBBBBR....',
-    '......................',
+    '....DOOOOOOOD.........',
+    '...DOODDOOOOD.........',
+    '...PPDBBBBBBBBBBB.....',
+    '..PPPDBBBBBBBBBBB.....',
+    '..PPPDBBBBBBEBBBBE....',
+    '..PPPDBBBBBBBBBBBB....',
+    '..PPPDBBBBBBBBBBBBB...',
+    '..PPPDBBBBBBBBBBBBB...',
+    '..PPPDBBBBBBBBBBBBR...',
+    '...PPDRRRRRRRRRRRR....',
+    '....DRBBBBBBBBBBBR....',
   ];
 
   const LEG_FRAMES = [
     [
-      '.....BB..BB...BB..BB..',
-      '.....RR..RR...RR..RR..',
-      '.....DD..DD...DD..DD..',
+      '.....BB.BB...BB.BB....',
+      '.....RR.RR...RR.RR....',
+      '.....RR.RR...RR.RR....',
     ],
     [
-      '....BB...BB..BB...BB..',
-      '....RR....RR.RR....RR.',
-      '....DD....DD.DD....DD.',
+      '....BB..BB..BB..BB....',
+      '....RR...RR.RR...RR...',
+      '....RR...RR.RR...RR...',
     ],
     [
-      '.....BB..BB...BB..BB..',
-      '.....RR..RR...RR..RR..',
-      '.....DD..DD...DD..DD..',
+      '.....BB.BB...BB.BB....',
+      '.....RR.RR...RR.RR....',
+      '.....RR.RR...RR.RR....',
     ],
     [
-      '......BB..BB..BB..BB..',
-      '.....RR..RR....RR..RR.',
-      '.....DD..DD....DD..DD.',
+      '......BB.BB.BB..BB....',
+      '.....RR..RR..RR..RR...',
+      '.....RR..RR..RR..RR...',
     ],
   ];
 
-  const WIND_GLYPHS = ['/', '=', '≡', '-', '<', '>', '.', ' '];
+  const WIND_GLYPHS = ['/', '=', '≡', '-', '<', '>', 'X', '/'];
   const RIDGE_DENSE = ['█', '#', 'X', 'x', '<', '>', '•'];
 
   function createClaudeFmScene(canvas, opts = {}) {
@@ -332,12 +339,12 @@
       const blinkPhase = timeSec % 4.6;
       const isBlinking = blinkPhase > 4.42;
 
-      // Integer pixel scale proportional to canvas height
-      const px = Math.max(2, Math.min(7, Math.floor(height / 145)));
+      // Crisp pixel scale kept below the prompt box in the lower valley clearing
+      const px = Math.max(2, Math.min(5, Math.floor(height / 165)));
       const spriteW = 22 * px;
-      const spriteH = 15 * px;
+      const spriteH = 14 * px;
       const baseX = Math.round(width * 0.5 - spriteW * 0.5 + pointerX * 6);
-      const baseY = Math.round(height * 0.635 - spriteH + bobPx * px + pointerY * 3);
+      const baseY = Math.round(height * 0.76 - spriteH + bobPx * px + pointerY * 3);
 
       const colorMap = {
         O: palette.bedroll,
@@ -347,8 +354,6 @@
         B: palette.mascotBody,
         R: palette.mascotShade,
         E: isBlinking ? palette.mascotBody : palette.mascotEye,
-        H: palette.headphones,
-        Q: palette.headphonePad,
       };
 
       ctx.globalAlpha = 1;
@@ -376,18 +381,17 @@
         }
       }
 
-      // Walking staff in front right hand
+      // Thin vertical walking staff in front right hand
       const staffSwivel = walkCycle === 1 ? 1 : walkCycle === 3 ? -1 : 0;
       const staffX = baseX + (20 + staffSwivel) * px;
       const staffTop = baseY + 5 * px;
-      for (let sy = 0; sy < 10; sy++) {
+      for (let sy = 0; sy < 9; sy++) {
         ctx.fillStyle = sy === 0 ? palette.packDark : palette.staff;
         ctx.fillRect(staffX, staffTop + sy * px, px, px);
       }
 
       // Optional headphones + floating musical notes when Claude FM audio is active
       if (audioActive) {
-        // Headband arch + earcup over head
         ctx.fillStyle = palette.headphones;
         for (let c = 9; c <= 14; c++) {
           ctx.fillRect(baseX + c * px, baseY - px, px, px);
@@ -397,13 +401,12 @@
         ctx.fillStyle = palette.headphonePad;
         ctx.fillRect(baseX + 8 * px, baseY + 3 * px, 2 * px, 3 * px);
 
-        // Two drifting pixel music notes rising gently from headphones
         ctx.font = `bold ${Math.max(11, px * 3)}px ${fontFamily}`;
         ctx.textBaseline = 'top';
         const noteGlyphs = ['♪', '♫'];
         for (let n = 0; n < 2; n++) {
           const phase = (timeSec * 0.42 + n * 0.5) % 1;
-          const ny = baseY - (3 + phase * 11) * px;
+          const ny = baseY - (3 + phase * 10) * px;
           const nx = baseX + (7 - phase * 4 + Math.sin(timeSec * 2.5 + n) * 1.4) * px;
           ctx.globalAlpha = Math.sin(phase * Math.PI) * 0.92;
           ctx.fillStyle = palette.noteInk;
@@ -469,13 +472,13 @@
         }
       }
 
-      // 3. Layer 2 & 3 — Midground ASCII Ridges & Wind-Rippled Central Clearing
-      const valleyLeft = Math.floor(cols * 0.28);
-      const valleyRight = Math.floor(cols * 0.62);
+      // 3. Layer 2 & 3 — Midground ASCII Ridges & Continuous Woven Valley Clearing
+      const valleyLeft = Math.floor(cols * 0.27);
+      const valleyRight = Math.floor(cols * 0.65);
       const shelfEndCol = Math.floor(cols * 0.26);
-      const shelfTopRow = Math.floor(rows * 0.49);
-      const shelfBotRow = Math.floor(rows * 0.55);
-      const fgBaseRow = Math.floor(rows * 0.645);
+      const shelfTopRow = Math.floor(rows * 0.54);
+      const shelfBotRow = Math.floor(rows * 0.59);
+      const fgBaseRow = Math.floor(rows * 0.77);
 
       // Clean expired interactive wind gusts
       while (gusts.length > 0 && t - gusts[0].bornSec > 2.2) {
@@ -486,25 +489,25 @@
         const worldC = c + ridgeShiftCols;
         const nHorizon = fbm1(worldC * 0.045, 7);
 
-        // Left slope (0..31%), open center plateau (28..62%), higher right terraced ridge (60..100%)
+        // Left slope (0..30%), open center valley (30..60%), higher right terraced ridge (60..100%)
         let ridgeRow;
-        if (c < cols * 0.31) {
-          const slopeT = c / (cols * 0.31);
-          ridgeRow = Math.floor(rows * (0.37 + slopeT * 0.1 + (nHorizon - 0.5) * 0.08));
+        if (c < cols * 0.30) {
+          const slopeT = c / (cols * 0.30);
+          ridgeRow = Math.floor(rows * (0.42 + slopeT * 0.09 + (nHorizon - 0.5) * 0.06));
         } else if (c <= cols * 0.60) {
-          ridgeRow = Math.floor(rows * (0.48 + (nHorizon - 0.5) * 0.07));
+          ridgeRow = Math.floor(rows * (0.50 + (nHorizon - 0.5) * 0.06));
         } else {
           const riseT = Math.min(1, (c - cols * 0.60) / (cols * 0.40));
-          ridgeRow = Math.floor(rows * (0.46 - riseT * 0.12 + (nHorizon - 0.5) * 0.11));
+          ridgeRow = Math.floor(rows * (0.49 - riseT * 0.08 + (nHorizon - 0.5) * 0.09));
         }
 
         const inCenterClearing = c >= valleyLeft && c <= valleyRight;
 
-        for (let r = ridgeRow; r < Math.min(rows, fgBaseRow + 4); r++) {
-          // Protruding horizontal cliff shelf on left side (x 0..26%, y 49..55%)
+        for (let r = ridgeRow; r < Math.min(rows, fgBaseRow + 3); r++) {
+          // Protruding horizontal cliff shelf on left side (x 0..26%, y 54..59%)
           if (c <= shelfEndCol && r >= shelfTopRow && r <= shelfBotRow) {
             const edgeNoise = hash2(Math.floor(worldC), r);
-            if (r > shelfTopRow || edgeNoise > 0.22) {
+            if (r > shelfTopRow || edgeNoise > 0.2) {
               drawCharCell(c, r, edgeNoise < 0.14 ? '#' : '█', palette.cliff, 0.96, cellW, cellH);
               continue;
             }
@@ -513,9 +516,9 @@
           const depth = r - ridgeRow;
           const tex = valueNoise2(worldC * 0.22, r * 0.35, 13);
 
-          if (inCenterClearing && r >= Math.floor(rows * 0.46)) {
-            // Light airy grass/mist glyphs sweeping gently in left-to-right wind waves
-            const windWave = Math.sin(c * 0.17 - t * 2.35 + r * 0.45);
+          if (inCenterClearing && r >= Math.floor(rows * 0.49)) {
+            // Continuous woven wind tapestry across the valley clearing (matching tRsQsTMvPNg)
+            const windWave = Math.sin(c * 0.16 - t * 2.25 + r * 0.42);
             let gustBoost = 0;
             for (let g = 0; g < gusts.length; g++) {
               const gu = gusts[g];
@@ -529,15 +532,22 @@
               }
             }
             const activity = windWave * 0.5 + 0.5 + gustBoost;
-            if (activity > 0.68 || (r > Math.floor(rows * 0.59) && tex > 0.32)) {
-              const wIdx = Math.floor((tex * 5 + t * 1.8 + c * 0.15) % (WIND_GLYPHS.length - 1));
+            const valleyDepth = (r - Math.floor(rows * 0.49)) / Math.max(1, fgBaseRow - Math.floor(rows * 0.49));
+            if (activity > 0.42 || valleyDepth > 0.35 || tex > 0.38) {
+              const wIdx = Math.floor((tex * 6 + t * 1.65 + c * 0.18 + r * 0.25) % WIND_GLYPHS.length);
               const glyph = WIND_GLYPHS[Math.max(0, wIdx)];
+              const glyphColor =
+                gustBoost > 0.25
+                  ? palette.accent
+                  : glyph === 'X' && valleyDepth > 0.45
+                  ? palette.glyphInk
+                  : palette.glyphWind;
               drawCharCell(
                 c,
                 r,
                 glyph,
-                gustBoost > 0.25 ? palette.accent : palette.glyphWind,
-                Math.min(0.88, 0.28 + activity * 0.35),
+                glyphColor,
+                Math.min(0.86, 0.28 + valleyDepth * 0.28 + activity * 0.26),
                 cellW,
                 cellH
               );
@@ -545,17 +555,17 @@
           } else {
             // Terraced dense ASCII ridges on left & right flanks
             let ch = ' ';
-            let alpha = 0.82;
-            if (depth <= 1 && tex > 0.26) {
-              ch = tex > 0.54 ? '█' : tex > 0.38 ? '#' : 'X';
-            } else if (depth <= 4 && tex > 0.34) {
+            let alpha = 0.84;
+            if (depth <= 1 && tex > 0.24) {
+              ch = tex > 0.54 ? '█' : tex > 0.36 ? '#' : 'X';
+            } else if (depth <= 4 && tex > 0.3) {
               ch = RIDGE_DENSE[Math.floor((tex * 17 + r) % RIDGE_DENSE.length)];
-            } else if (tex > 0.44) {
-              ch = tex > 0.76 ? '#' : tex > 0.58 ? 'x' : hash2(Math.floor(worldC), r) < 0.5 ? '<' : '>';
-              alpha = 0.64;
-            } else if (tex > 0.32) {
-              ch = '•';
-              alpha = 0.45;
+            } else if (tex > 0.4) {
+              ch = tex > 0.72 ? '#' : tex > 0.54 ? 'x' : hash2(Math.floor(worldC), r) < 0.5 ? '<' : '>';
+              alpha = 0.68;
+            } else if (tex > 0.24) {
+              ch = hash2(Math.floor(worldC), r) < 0.6 ? '/' : '≡';
+              alpha = 0.48;
             }
             if (ch !== ' ') {
               drawCharCell(c, r, ch, ch === '█' || ch === '#' ? palette.cliff : palette.glyphInk, alpha, cellW, cellH);
@@ -567,7 +577,7 @@
       // 4. Ambient Drifting ASCII Sky/Valley Motes
       for (let m = 0; m < 18; m++) {
         const mx = ((hash2(m, 91) * width + t * (10 + (m % 5) * 3)) % (width + 20)) - 10;
-        const my = (hash2(m, 137) * height * 0.62) + Math.sin(t * 0.9 + m) * 6;
+        const my = (hash2(m, 137) * height * 0.52) + Math.sin(t * 0.9 + m) * 6;
         ctx.globalAlpha = 0.28 + 0.25 * Math.sin(t * 1.4 + m * 2.1);
         ctx.fillStyle = palette.glyphMuted;
         ctx.fillText(m % 3 === 0 ? '•' : '.', Math.round(mx), Math.round(my));
@@ -576,21 +586,20 @@
       // 5. Layer 4 — Pixel-Art Clawd Traveler Sprite
       drawMascot(t);
 
-      // 6. Layer 5 — Faster Parallax Jagged Foreground Cliff Silhouettes (y = 66%..100%)
+      // 6. Layer 5 — Faster Parallax Jagged Foreground Cliff Silhouettes (y = 77%..100%)
       for (let c = 0; c < cols; c++) {
         const worldFg = c + fgShiftCols;
         const spireNoise = fbm1(worldFg * 0.14, 101);
         const microSpike = hash2(Math.floor(worldFg), 211);
-        // Keep a slight valley dip right under Clawd's feet while keeping jagged spires left/right & base
         const centerDist = Math.abs(c / cols - 0.5);
-        const centerDip = Math.max(0, 1 - centerDist * 4.5) * 0.05;
+        const centerDip = Math.max(0, 1 - centerDist * 4.5) * 0.045;
         const spireTopRow = Math.floor(
-          rows * (0.67 + centerDip + (1 - spireNoise) * 0.13 - (microSpike > 0.72 ? 0.045 : 0))
+          rows * (0.77 + centerDip + (1 - spireNoise) * 0.1 - (microSpike > 0.72 ? 0.04 : 0))
         );
 
         for (let r = spireTopRow; r < rows; r++) {
           const pocket = valueNoise2(worldFg * 0.38, r * 0.52, 307);
-          const belowFloor = r >= Math.floor(rows * 0.85);
+          const belowFloor = r >= Math.floor(rows * 0.89);
           if (belowFloor) {
             if (pocket > 0.76) {
               drawCharCell(c, r, '#', palette.cliffPocket, 0.9, cellW, cellH);

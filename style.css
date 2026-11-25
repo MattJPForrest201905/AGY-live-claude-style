@@ -545,7 +545,7 @@ html[data-ag-cs-style] .ag-cs-claude-fm-video[data-loaded="1"] {
   opacity: 1;
 }
 
-/* Gentle radial readability veil behind centered Studio UI so text & KPIs remain sharp over the ASCII landscape */
+/* Gentle radial readability veil focused behind the upper Greeting/Overview area so lower valley & Clawd stay vivid */
 html[data-ag-cs-style][data-ag-cs-live-bg="claude-fm"] .agy-home::after,
 html[data-ag-cs-style][data-ag-cs-live-bg="youtube"] .agy-home::after {
   content: "";
@@ -554,9 +554,9 @@ html[data-ag-cs-style][data-ag-cs-live-bg="youtube"] .agy-home::after {
   z-index: 0;
   pointer-events: none;
   background: radial-gradient(
-    ellipse 64% 58% at 50% 42%,
-    color-mix(in srgb, var(--ag-cs-canvas) 62%, transparent) 0%,
-    color-mix(in srgb, var(--ag-cs-canvas) 20%, transparent) 62%,
+    ellipse 64% 34% at 50% 24%,
+    color-mix(in srgb, var(--ag-cs-canvas) 54%, transparent) 0%,
+    color-mix(in srgb, var(--ag-cs-canvas) 14%, transparent) 60%,
     transparent 100%
   ) !important;
 }
@@ -564,6 +564,35 @@ html[data-ag-cs-style][data-ag-cs-live-bg="youtube"] .agy-home::after {
 html[data-ag-cs-style] .agy-home > :not(.ag-cs-ripple-host):not(.ag-cs-claude-fm-host) {
   position: relative;
   z-index: 1;
+}
+
+/* Harmonize centered Studio alignment & frosted transparency over Claude FM / YouTube live backgrounds */
+html[data-ag-cs-style]:is([data-ag-cs-live-bg="claude-fm"], [data-ag-cs-live-bg="youtube"]) .agy-home [data-testid="home-greeting"],
+html[data-ag-cs-style]:is([data-ag-cs-live-bg="claude-fm"], [data-ag-cs-live-bg="youtube"]) .ag-cs-home-panel-seat,
+html[data-ag-cs-style]:is([data-ag-cs-live-bg="claude-fm"], [data-ag-cs-live-bg="youtube"]) .agy-home [data-testid="agent-input-box"] {
+  width: 100% !important;
+  max-width: min(680px, 100%) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+html[data-ag-cs-style]:is([data-ag-cs-live-bg="claude-fm"], [data-ag-cs-live-bg="youtube"]) .ag-cs-home-panel {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  background: color-mix(in srgb, var(--ag-cs-panel-bg) 68%, transparent) !important;
+  backdrop-filter: blur(12px) saturate(1.1);
+  -webkit-backdrop-filter: blur(12px) saturate(1.1);
+  border: 1px solid var(--ag-cs-pill-border, var(--ag-cs-border-1));
+}
+
+html[data-ag-cs-style][data-ag-cs-home="studio"]:is([data-ag-cs-live-bg="claude-fm"], [data-ag-cs-live-bg="youtube"]) .agy-home > div:not(.ag-cs-ripple-host):not(.ag-cs-claude-fm-host) > div:first-child {
+  padding-top: 12px !important;
+  gap: 8px !important;
+}
+
+html[data-ag-cs-style][data-ag-cs-home="studio"]:is([data-ag-cs-live-bg="claude-fm"], [data-ag-cs-live-bg="youtube"]) .agy-home:has(.ag-cs-crab) [data-testid="agent-input-box"] {
+  margin-top: 22px !important;
 }
 
 /* ── 4. Studio Home Layout & Usage Dashboard Card (Figure 1) ────────────── */
@@ -1087,6 +1116,14 @@ html[data-ag-cs-style][data-ag-cs-composer="on"] .surface-composer-card > div.re
   transition: border-color 150ms ease, box-shadow 150ms ease !important;
 }
 
+html[data-ag-cs-style][data-ag-cs-composer="on"]:is([data-ag-cs-live-bg="claude-fm"], [data-ag-cs-live-bg="youtube"]) .agy-home .surface-composer-card > div.relative.w-full {
+  background: color-mix(in srgb, var(--ag-cs-composer-bg) 50%, transparent) !important;
+  backdrop-filter: blur(12px) saturate(1.15);
+  -webkit-backdrop-filter: blur(12px) saturate(1.15);
+  border: 1px solid var(--ag-cs-pill-border, var(--ag-cs-border-2)) !important;
+  padding: 10px 42px 10px 14px !important;
+}
+
 html[data-ag-cs-style][data-ag-cs-composer="on"] .surface-composer-card:focus-within > div.relative.w-full {
   border-color: var(--ag-cs-focus-ring) !important;
   box-shadow: 0 0 0 1px var(--ag-cs-focus-halo), var(--ag-cs-composer-shadow) !important;
@@ -1189,10 +1226,10 @@ html[data-ag-cs-style][data-ag-cs-composer="on"][data-ag-cs-live-bg="youtube"] .
   min-height: 30px !important;
   padding: 0 8px !important;
   border-radius: 10px !important;
-  background: color-mix(in srgb, var(--ag-cs-composer-bg) 88%, transparent) !important;
+  background: color-mix(in srgb, var(--ag-cs-composer-bg) 56%, transparent) !important;
   border: 1px solid var(--ag-cs-pill-border, var(--ag-cs-border-1)) !important;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px) saturate(1.15);
+  -webkit-backdrop-filter: blur(12px) saturate(1.15);
 }
 
 /* Flatten inner wrappers cleanly without touching React nodes */
@@ -1291,6 +1328,7 @@ html[data-ag-cs-style][data-ag-cs-composer="on"] .agy-composer-footer [data-tool
   order: 5;
   display: inline-flex;
   align-items: center;
+  gap: 5px;
   flex: 0 1 auto;
   min-width: 0;
   margin-left: 8px;
@@ -3242,6 +3280,10 @@ html[data-ag-cs-style] [contenteditable="true"][data-ag-cs-smooth-caret="1"] {
   pointer-events: none;
 }
 
+html[data-ag-cs-style] [data-testid="title-menu-bar"]:has(.ag-cs-fm-bar) {
+  position: relative !important;
+}
+
 .ag-cs-fm-bar {
   position: fixed;
   top: 5px;
@@ -3265,6 +3307,13 @@ html[data-ag-cs-style] [contenteditable="true"][data-ag-cs-smooth-caret="1"] {
   line-height: 1;
   user-select: none;
   -webkit-app-region: no-drag;
+}
+
+.ag-cs-fm-bar[data-anchored="titlebar"] {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 .ag-cs-fm-bar * {
