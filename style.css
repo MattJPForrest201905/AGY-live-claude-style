@@ -1356,9 +1356,9 @@ html[data-ag-cs-style][data-ag-cs-composer="on"] .agy-composer-footer [data-tool
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  flex: 0 1 auto;
+  flex: 0 8 auto;
   min-width: 0;
-  margin-left: 8px;
+  margin-left: 4px;
   padding: 0 6px;
   height: 24px;
   border-radius: 6px;
@@ -1386,8 +1386,9 @@ html[data-ag-cs-style][data-ag-cs-composer="on"] .agy-composer-footer [data-tool
 html[data-ag-cs-style][data-ag-cs-composer="on"] .agy-composer-footer > div:nth-child(1) > div.flex > div.flex > div.no-focus-agent-input {
   order: 6 !important;
   margin-left: auto !important;
-  flex: 0 1 auto !important;
-  min-width: 72px !important;
+  flex: 0 0 auto !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
 }
 
 html[data-ag-cs-style][data-ag-cs-composer="on"] .agy-composer-footer [data-testid="model-selector-trigger"] {
@@ -1401,6 +1402,7 @@ html[data-ag-cs-style][data-ag-cs-composer="on"] .agy-composer-footer [data-test
   max-width: 100% !important;
   min-width: 0 !important;
   overflow: hidden !important;
+  white-space: nowrap !important;
 }
 html[data-ag-cs-style][data-ag-cs-composer="on"] .agy-composer-footer [data-testid="model-selector-trigger"]:hover {
   background: var(--ag-cs-hover-wash) !important;
@@ -1414,8 +1416,8 @@ html[data-ag-cs-style][data-ag-cs-composer="on"] .agy-composer-footer [data-test
 html[data-ag-cs-style] [data-ag-cs-effort] {
   opacity: 1 !important;
   font-weight: 600;
-  display: inline-flex;
-  align-items: center;
+  display: inline;
+  vertical-align: baseline;
   padding: 1px 5px;
   margin-left: 3px;
   border-radius: 5px;
@@ -1473,17 +1475,20 @@ html[data-ag-cs-style] [data-ag-cs-effort="extra"] { color: var(--ag-cs-effort-x
 }
 
 /* Progressive narrow-footer collapse ladder via Antigravity's @container/input-footer */
-@container input-footer (max-width: 630px) {
+@container input-footer (max-width: 740px) {
   .ag-cs-stat-cache { display: none; }
 }
-@container input-footer (max-width: 560px) {
+@container input-footer (max-width: 640px) {
   .ag-cs-stat-total { display: none; }
 }
-@container input-footer (max-width: 500px) {
+@container input-footer (max-width: 540px) {
   .ag-cs-stat-speed { display: none; }
 }
-@container input-footer (max-width: 450px) {
+@container input-footer (max-width: 460px) {
   .ag-cs-inline-stats { display: none; }
+  html[data-ag-cs-style][data-ag-cs-composer="on"] .agy-composer-footer > div:nth-child(1) > div.flex > div.flex > div.no-focus-agent-input {
+    flex: 0 1 auto !important;
+  }
 }
 @container input-footer (max-width: 340px) {
   .ag-cs-context-ring > span { display: none; }
