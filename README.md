@@ -1,9 +1,9 @@
-![Rainy City](assets/previews/scene-rainy-city-dark.png)
+![Rainy City](assets/previews/scene-rainy-city-dark.gif)
 
-![Valley](assets/previews/scene-valley-light.png)
+![Valley](assets/previews/scene-valley-light.gif)
 
-![Alpine Stars](assets/previews/scene-alpine-stars-dark.png)
+![Alpine Stars](assets/previews/scene-alpine-stars-dark.gif)
 
-![Ocean Lighthouse](assets/previews/scene-ocean-lighthouse-dark.png)
+![Ocean Lighthouse](assets/previews/scene-ocean-lighthouse-dark.gif)
 
-![Sakura Trail](assets/previews/scene-sakura-trail-light.png)
+![Sakura Trail](assets/previews/scene-sakura-trail-light.gif)
