@@ -498,15 +498,23 @@ html[data-ag-cs-style] .agy-home::after {
   background: none !important;
 }
 
-html[data-ag-cs-style] .ag-cs-ripple-host {
+html[data-ag-cs-style] .ag-cs-ripple-host,
+html[data-ag-cs-style] .ag-cs-claude-fm-host {
   position: absolute;
   inset: 0;
+  width: 100% !important;
+  max-width: none !important;
+  height: 100% !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
 }
 
-html[data-ag-cs-style] .ag-cs-ripple-canvas {
+html[data-ag-cs-style] .ag-cs-ripple-canvas,
+html[data-ag-cs-style] .ag-cs-claude-fm-canvas {
   position: absolute;
   top: 0;
   left: 0;
@@ -514,13 +522,52 @@ html[data-ag-cs-style] .ag-cs-ripple-canvas {
   pointer-events: none;
 }
 
-html[data-ag-cs-style] .agy-home > :not(.ag-cs-ripple-host) {
+html[data-ag-cs-style] .ag-cs-claude-fm-canvas {
+  image-rendering: pixelated;
+}
+
+html[data-ag-cs-style] .ag-cs-claude-fm-video {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max(100%, 177.78vh);
+  height: max(100%, 56.25vw);
+  min-width: 100%;
+  min-height: 100%;
+  transform: translate(-50%, -50%) scale(1.04);
+  border: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 420ms ease;
+}
+
+html[data-ag-cs-style] .ag-cs-claude-fm-video[data-loaded="1"] {
+  opacity: 1;
+}
+
+/* Gentle radial readability veil behind centered Studio UI so text & KPIs remain sharp over the ASCII landscape */
+html[data-ag-cs-style][data-ag-cs-live-bg="claude-fm"] .agy-home::after,
+html[data-ag-cs-style][data-ag-cs-live-bg="youtube"] .agy-home::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 64% 58% at 50% 42%,
+    color-mix(in srgb, var(--ag-cs-canvas) 62%, transparent) 0%,
+    color-mix(in srgb, var(--ag-cs-canvas) 20%, transparent) 62%,
+    transparent 100%
+  ) !important;
+}
+
+html[data-ag-cs-style] .agy-home > :not(.ag-cs-ripple-host):not(.ag-cs-claude-fm-host) {
   position: relative;
   z-index: 1;
 }
 
 /* ── 4. Studio Home Layout & Usage Dashboard Card (Figure 1) ────────────── */
-html[data-ag-cs-style][data-ag-cs-home="studio"] .agy-home > div:not(.ag-cs-ripple-host) > div:first-child {
+html[data-ag-cs-style][data-ag-cs-home="studio"] .agy-home > div:not(.ag-cs-ripple-host):not(.ag-cs-claude-fm-host) > div:first-child {
   justify-content: flex-start !important;
   padding-top: 20px !important;
   padding-bottom: 16px !important;
@@ -528,17 +575,17 @@ html[data-ag-cs-style][data-ag-cs-home="studio"] .agy-home > div:not(.ag-cs-ripp
 }
 
 /* Reserve bottom clearance when populated Announcements/tips coexist with pixel crab */
-html[data-ag-cs-style][data-ag-cs-home="studio"] .agy-home:has(.ag-cs-crab) > div:not(.ag-cs-ripple-host) > div:first-child:has(> div.mt-auto > *) {
+html[data-ag-cs-style][data-ag-cs-home="studio"] .agy-home:has(.ag-cs-crab) > div:not(.ag-cs-ripple-host):not(.ag-cs-claude-fm-host) > div:first-child:has(> div.mt-auto > *) {
   padding-bottom: 36px !important;
 }
 
 /* Remove the huge native center-pushing spacer in studio mode */
-html[data-ag-cs-style][data-ag-cs-home="studio"] .agy-home > div:not(.ag-cs-ripple-host) > div:first-child > div[style*="flex-basis"] {
+html[data-ag-cs-style][data-ag-cs-home="studio"] .agy-home > div:not(.ag-cs-ripple-host):not(.ag-cs-claude-fm-host) > div:first-child > div[style*="flex-basis"] {
   display: none !important;
 }
 
 /* Keep Announcements and tips compact and aligned if present */
-html[data-ag-cs-style][data-ag-cs-home="studio"] .agy-home > div:not(.ag-cs-ripple-host) > div:first-child > div.mt-auto {
+html[data-ag-cs-style][data-ag-cs-home="studio"] .agy-home > div:not(.ag-cs-ripple-host):not(.ag-cs-claude-fm-host) > div:first-child > div.mt-auto {
   width: 100% !important;
   max-width: var(--ag-cs-col-max) !important;
   margin-left: auto !important;
@@ -1134,6 +1181,18 @@ html[data-ag-cs-style][data-ag-cs-composer="on"] .agy-composer-footer {
   background: transparent !important;
   display: flex !important;
   align-items: center !important;
+}
+
+html[data-ag-cs-style][data-ag-cs-composer="on"][data-ag-cs-live-bg="claude-fm"] .agy-composer-footer,
+html[data-ag-cs-style][data-ag-cs-composer="on"][data-ag-cs-live-bg="youtube"] .agy-composer-footer {
+  height: 30px !important;
+  min-height: 30px !important;
+  padding: 0 8px !important;
+  border-radius: 10px !important;
+  background: color-mix(in srgb, var(--ag-cs-composer-bg) 88%, transparent) !important;
+  border: 1px solid var(--ag-cs-pill-border, var(--ag-cs-border-1)) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 /* Flatten inner wrappers cleanly without touching React nodes */
@@ -3169,4 +3228,196 @@ html[data-ag-cs-style] [contenteditable="true"][data-ag-cs-smooth-caret="1"] {
 @keyframes ag-cs-caret-blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
+}
+
+/* ── 13. Top Bar Claude FM Music Player (.ag-cs-fm-bar) ─────────────────── */
+.ag-cs-fm-yt-dock {
+  position: fixed;
+  bottom: -260px;
+  right: -300px;
+  width: 200px;
+  height: 113px;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ag-cs-fm-bar {
+  position: fixed;
+  top: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 45;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--ag-cs-pill-bg, rgba(19, 22, 29, 0.78));
+  border: 1px solid var(--ag-cs-pill-border, rgba(244, 249, 255, 0.14));
+  color: var(--foreground, #f4f9ff);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 11.5px;
+  line-height: 1;
+  user-select: none;
+  -webkit-app-region: no-drag;
+}
+
+.ag-cs-fm-bar * {
+  -webkit-app-region: no-drag;
+}
+
+.ag-cs-fm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  min-height: 24px;
+  height: 24px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--secondary-foreground, #acb5c0);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 140ms ease, background-color 140ms ease;
+}
+
+.ag-cs-fm-btn:hover {
+  color: var(--foreground, #f4f9ff);
+  background: var(--ag-cs-hover-wash, rgba(244, 249, 255, 0.08));
+}
+
+.ag-cs-fm-btn svg {
+  display: block;
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  fill: currentColor;
+}
+
+:where(.ag-cs-fm-btn, .ag-cs-fm-vol):focus-visible {
+  outline: 2px solid var(--ag-cs-accent, #d97757);
+  outline-offset: 2px;
+}
+
+.ag-cs-fm-play {
+  width: 24px;
+  padding: 0;
+  color: var(--ag-cs-accent, #d97757);
+  background: color-mix(in srgb, var(--ag-cs-accent, #d97757) 14%, transparent);
+}
+
+.ag-cs-fm-play:hover {
+  color: var(--ag-cs-accent, #d97757);
+  background: color-mix(in srgb, var(--ag-cs-accent, #d97757) 24%, transparent);
+}
+
+.ag-cs-fm-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 4px;
+}
+
+.ag-cs-fm-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--muted-foreground, #88929f);
+  opacity: 0.6;
+  transition: opacity 150ms ease, background-color 150ms ease;
+}
+
+.ag-cs-fm-bar[data-playing="1"] .ag-cs-fm-dot {
+  background: var(--ag-cs-accent, #d97757);
+  opacity: 1;
+}
+
+.ag-cs-fm-title {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--foreground, #f4f9ff);
+  white-space: nowrap;
+}
+
+.ag-cs-fm-eq {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 1.5px;
+  height: 11px;
+  width: 12px;
+}
+
+.ag-cs-fm-eq i {
+  display: block;
+  width: 2px;
+  height: 10px;
+  border-radius: 1px;
+  background: var(--ag-cs-accent, #d97757);
+  transform-origin: bottom center;
+  transform: scaleY(0.28);
+  opacity: 0.45;
+  transition: transform 150ms ease, opacity 150ms ease;
+}
+
+.ag-cs-fm-bar[data-playing="1"] .ag-cs-fm-eq i {
+  opacity: 0.95;
+  transform: scaleY(0.75);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ag-cs-fm-bar[data-playing="1"] .ag-cs-fm-dot {
+    animation: ag-cs-fm-pulse 2s ease-in-out infinite;
+  }
+  .ag-cs-fm-bar[data-playing="1"] .ag-cs-fm-eq i:nth-child(1) {
+    animation: ag-cs-fm-eq 0.9s ease-in-out infinite;
+  }
+  .ag-cs-fm-bar[data-playing="1"] .ag-cs-fm-eq i:nth-child(2) {
+    animation: ag-cs-fm-eq 0.72s ease-in-out 0.18s infinite;
+  }
+  .ag-cs-fm-bar[data-playing="1"] .ag-cs-fm-eq i:nth-child(3) {
+    animation: ag-cs-fm-eq 1.05s ease-in-out 0.34s infinite;
+  }
+  .ag-cs-fm-bar[data-playing="1"] .ag-cs-fm-eq i:nth-child(4) {
+    animation: ag-cs-fm-eq 0.8s ease-in-out 0.1s infinite;
+  }
+}
+
+@keyframes ag-cs-fm-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.25); opacity: 0.6; }
+}
+
+@keyframes ag-cs-fm-eq {
+  0%, 100% { transform: scaleY(0.28); }
+  50% { transform: scaleY(1); }
+}
+
+.ag-cs-fm-source {
+  font-family: var(--font-mono, ui-monospace, Consolas, monospace);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 0 6px;
+  background: var(--ag-cs-hover-wash, rgba(244, 249, 255, 0.06));
+}
+
+.ag-cs-fm-vol {
+  width: 54px;
+  height: 4px;
+  margin: 0 2px;
+  accent-color: var(--ag-cs-accent, #d97757);
+  cursor: pointer;
+}
+
+@media (max-width: 780px) {
+  .ag-cs-fm-vol,
+  .ag-cs-fm-source {
+    display: none;
+  }
 }

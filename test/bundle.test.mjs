@@ -275,8 +275,8 @@ test('inject expression mounts and REMOVE_EXPRESSION cleanly tears down on simul
     matchMedia: () => ({ matches: false }),
     MutationObserver: class { observe() {} disconnect() {} },
     ResizeObserver: class { observe() {} disconnect() {} },
-    requestAnimationFrame: () => 1,
-    cancelAnimationFrame: () => {},
+    requestAnimationFrame: (fn) => { const id = setTimeout(() => fn(Date.now()), 5); timers.add(id); return id; },
+    cancelAnimationFrame: (id) => { timers.delete(id); clearTimeout(id); },
     setTimeout: (fn, ms) => { const id = setTimeout(fn, ms); timers.add(id); return id; },
     clearTimeout: (id) => { timers.delete(id); clearTimeout(id); },
     setInterval: () => 1,
@@ -306,14 +306,18 @@ test('inject expression mounts and REMOVE_EXPRESSION cleanly tears down on simul
     assert.equal(html.getAttribute('data-ag-cs-style'), '1');
     assert.equal(html.getAttribute('data-ag-cs-palette'), 'obsidian');
     assert.equal(html.getAttribute('data-ag-cs-home'), 'studio');
+    assert.equal(html.getAttribute('data-ag-cs-live-bg'), 'claude-fm');
+    assert.equal(html.getAttribute('data-ag-cs-fm-bar'), 'on');
     assert.equal(h1.textContent, "What's up next?");
     assert.equal(placeholder.getAttribute('data-ag-cs-placeholder'), '描述任务或提出问题');
     assert.equal(effortSpan.getAttribute('data-ag-cs-effort'), 'low');
     assert.equal(effortSpan.classList.contains('ag-cs-effort-badge'), true);
     assert.ok(head.querySelector('#ag-claude-style-css'));
     assert.ok(home.querySelector('.ag-cs-home-panel'));
-    assert.ok(home.querySelector('.ag-cs-ripple-host'));
-    assert.ok(home.querySelector('.ag-cs-ripple-canvas'));
+    assert.ok(home.querySelector('.ag-cs-claude-fm-host'));
+    assert.ok(home.querySelector('.ag-cs-claude-fm-canvas'));
+    assert.equal(home.querySelector('.ag-cs-ripple-host'), null);
+    assert.ok(body.querySelector('.ag-cs-fm-bar'));
     assert.ok(card.querySelector('.ag-cs-crab'));
 
     // Queued message container before composer shell gets raised by 46px when Clawd crab is active
@@ -440,7 +444,7 @@ test('inject expression mounts and REMOVE_EXPRESSION cleanly tears down on simul
     const settingKeys = new Set(
       appearancePanel.querySelectorAll('#ag-cs-settings-sec button').map((b) => b.getAttribute('data-ag-cs-key'))
     );
-    assert.equal(settingKeys.size, 20);
+    assert.equal(settingKeys.size, 23);
     for (const expectedKey of [
       'language',
       'homeLayout',
@@ -453,6 +457,9 @@ test('inject expression mounts and REMOVE_EXPRESSION cleanly tears down on simul
       'performanceBackdrop',
       'smoothCaret',
       'mascot',
+      'liveBackground',
+      'claudeFmBar',
+      'claudeFmSource',
       'homeRipple',
       'inlineStats',
       'ringMode',
@@ -572,16 +579,23 @@ test('inject expression mounts and REMOVE_EXPRESSION cleanly tears down on simul
     assert.equal(html.hasAttribute('data-ag-cs-style'), false);
     assert.equal(html.hasAttribute('data-ag-cs-effort-accent'), false);
     assert.equal(html.hasAttribute('data-ag-cs-perf-backdrop'), false);
+    assert.equal(html.hasAttribute('data-ag-cs-live-bg'), false);
+    assert.equal(html.hasAttribute('data-ag-cs-fm-bar'), false);
     assert.equal(html.hasAttribute('data-ag-cs-lang'), false);
     assert.equal(html.hasAttribute('data-ag-cs-cjk'), false);
     assert.equal(sandbox.globalThis.__agCsEffortCore, undefined);
+    assert.equal(sandbox.globalThis.__agCsClaudeFmCore, undefined);
     assert.equal(sandbox.globalThis.__agCsPerfAssets, undefined);
     assert.equal(sandbox.globalThis.__agCsCleanups, undefined);
     assert.equal(body.querySelector('.ag-cs-perf-backdrop'), null);
+    assert.equal(body.querySelector('.ag-cs-fm-bar'), null);
+    assert.equal(body.querySelector('.ag-cs-fm-yt-dock'), null);
     assert.equal(h1.textContent, 'Welcome back, girl. Where should we pick up?');
     assert.equal(placeholder.hasAttribute('data-ag-cs-placeholder'), false);
     assert.equal(effortSpan.hasAttribute('data-ag-cs-effort'), false);
     assert.equal(home.querySelector('.ag-cs-home-panel'), null);
+    assert.equal(home.querySelector('.ag-cs-claude-fm-host'), null);
+    assert.equal(home.querySelector('.ag-cs-claude-fm-canvas'), null);
     assert.equal(home.querySelector('.ag-cs-ripple-host'), null);
     assert.equal(home.querySelector('.ag-cs-ripple-canvas'), null);
     assert.equal(card.querySelector('.ag-cs-crab'), null);
@@ -660,8 +674,8 @@ test('buildInjectExpression defers cleanly when documentElement is null at docum
       disconnect() {}
     },
     ResizeObserver: class { observe() {} disconnect() {} },
-    requestAnimationFrame: () => 1,
-    cancelAnimationFrame: () => {},
+    requestAnimationFrame: (fn) => { const id = setTimeout(() => fn(Date.now()), 5); timers.add(id); return id; },
+    cancelAnimationFrame: (id) => { timers.delete(id); clearTimeout(id); },
     setTimeout: (fn, ms) => { const id = setTimeout(fn, ms); timers.add(id); return id; },
     clearTimeout: (id) => { timers.delete(id); clearTimeout(id); },
     setInterval: () => 1,
@@ -905,8 +919,8 @@ test('effort popover uses clientWidth (immune to pop-in scale), preserves Extra 
     removeEventListener(ev, fn) { winListeners.get(ev)?.delete(fn); },
     MutationObserver: class { observe() {} disconnect() {} },
     ResizeObserver: class { observe() {} disconnect() {} },
-    requestAnimationFrame: () => 1,
-    cancelAnimationFrame: () => {},
+    requestAnimationFrame: (fn) => { const id = setTimeout(() => fn(Date.now()), 5); timers.add(id); return id; },
+    cancelAnimationFrame: (id) => { timers.delete(id); clearTimeout(id); },
     setTimeout: (fn, ms) => { const id = setTimeout(fn, ms); timers.add(id); return id; },
     clearTimeout: (id) => { timers.delete(id); clearTimeout(id); },
     setInterval: () => 1,
@@ -1241,8 +1255,8 @@ test('bottom-right context ring navigates directly to quotas or breakdown tab ba
     matchMedia: () => ({ matches: false }),
     MutationObserver: class { observe() {} disconnect() {} },
     ResizeObserver: class { observe() {} disconnect() {} },
-    requestAnimationFrame: () => 1,
-    cancelAnimationFrame: () => {},
+    requestAnimationFrame: (fn) => { const id = setTimeout(() => fn(Date.now()), 5); timers.add(id); return id; },
+    cancelAnimationFrame: (id) => { timers.delete(id); clearTimeout(id); },
     setTimeout: (fn, ms) => { const id = setTimeout(fn, ms); timers.add(id); return id; },
     clearTimeout: (id) => { timers.delete(id); clearTimeout(id); },
     setInterval: () => 1,
@@ -2467,8 +2481,8 @@ test('syncTurnBadges mounts exactly one #T badge on the final agent-response of 
     matchMedia: () => ({ matches: false }),
     MutationObserver: class { observe() {} disconnect() {} },
     ResizeObserver: class { observe() {} disconnect() {} },
-    requestAnimationFrame: () => 1,
-    cancelAnimationFrame: () => {},
+    requestAnimationFrame: (fn) => { const id = setTimeout(() => fn(Date.now()), 5); timers.add(id); return id; },
+    cancelAnimationFrame: (id) => { timers.delete(id); clearTimeout(id); },
     setTimeout: (fn, ms) => { const id = setTimeout(fn, ms); timers.add(id); return id; },
     clearTimeout: (id) => { timers.delete(id); clearTimeout(id); },
     setInterval: () => 1,
@@ -4316,7 +4330,7 @@ test('unmountRipple tolerates zero-size .agy-home (field=null) and copy honestly
 
   try {
     vm.runInNewContext(
-      cdp.buildInjectExpression({ ...cdp.DEFAULT_CONFIG, homeLayout: 'studio', homeRipple: true, ringMode: 'context' }),
+      cdp.buildInjectExpression({ ...cdp.DEFAULT_CONFIG, homeLayout: 'studio', liveBackground: 'ripple', homeRipple: true, ringMode: 'context' }),
       sandbox
     );
     await new Promise((r) => setTimeout(r, 80));
@@ -4324,12 +4338,12 @@ test('unmountRipple tolerates zero-size .agy-home (field=null) and copy honestly
     // 1. Zero-size ripple mounted with field=null -> turning off homeRipple MUST NOT throw TypeError in unmountRipple()
     assert.ok(home.querySelector('.ag-cs-ripple-host'), 'Expected zero-size ripple host attached');
     assert.doesNotThrow(() => {
-      sandbox.window.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, homeLayout: 'studio', homeRipple: false, ringMode: 'context' });
+      sandbox.window.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, homeLayout: 'studio', liveBackground: 'ripple', homeRipple: false, ringMode: 'context' });
     });
     assert.equal(home.querySelector('.ag-cs-ripple-host'), null);
 
     // Re-enable zero-size ripple, then REMOVE_EXPRESSION (destroy -> unmountRipple) must also not throw
-    sandbox.window.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, homeLayout: 'studio', homeRipple: true, ringMode: 'context' });
+    sandbox.window.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, homeLayout: 'studio', liveBackground: 'ripple', homeRipple: true, ringMode: 'context' });
     assert.ok(home.querySelector('.ag-cs-ripple-host'));
 
     // 2. Statistics remain available without pricing UI.
@@ -4640,4 +4654,280 @@ test('inject expression enters sidecar-lite mode on plugin://swarm-- iframe with
   assert.equal(html.getAttribute('lang'), 'en');
   assert.equal(sandbox.window.__agClaudeStyle, undefined);
   assert.equal(sandbox.globalThis.__agCsSidecarCore, undefined);
+});
+
+test('Claude FM live background, YouTube mode, top-bar music controls, mascot music mood, and teardown work seamlessly', async () => {
+  function makeNode(tag, opts = {}) {
+    const attrs = new Map(Object.entries(opts.attrs || {}));
+    const listeners = new Map();
+    const children = [];
+    const classes = new Set((opts.className || '').split(/\s+/).filter(Boolean));
+    const node = {
+      tagName: tag.toUpperCase(),
+      id: opts.id || '',
+      value: opts.value || '',
+      style: {
+        _props: {},
+        setProperty(k, v) { this._props[k] = String(v); },
+        getPropertyValue(k) { return this._props[k] || ''; },
+        removeProperty(k) { delete this._props[k]; },
+      },
+      classList: {
+        contains: (c) => classes.has(c),
+        add: (c) => classes.add(c),
+        remove: (c) => classes.delete(c),
+      },
+      get className() { return Array.from(classes).join(' '); },
+      set className(v) { classes.clear(); String(v).split(/\s+/).filter(Boolean).forEach((c) => classes.add(c)); },
+      children,
+      parentElement: null,
+      parentNode: null,
+      isConnected: true,
+      _text: opts.text || '',
+      get textContent() { return children.length ? children.map((c) => c.textContent).join('') : this._text; },
+      set textContent(v) { children.length = 0; this._text = String(v); },
+      get innerHTML() { return this._html || ''; },
+      set innerHTML(h) { children.length = 0; this._html = h; },
+      get firstChild() { return children[0] || null; },
+      get lastElementChild() { return children[children.length - 1] || null; },
+      clientWidth: opts.clientWidth ?? 1280,
+      clientHeight: opts.clientHeight ?? 720,
+      width: 0,
+      height: 0,
+      appendChild(ch) { ch.parentElement = this; ch.parentNode = this; children.push(ch); return ch; },
+      insertBefore(ch, ref) {
+        ch.parentElement = this; ch.parentNode = this;
+        const idx = ref ? children.indexOf(ref) : -1;
+        if (idx >= 0) children.splice(idx, 0, ch);
+        else children.push(ch);
+        return ch;
+      },
+      removeChild(ch) {
+        const idx = children.indexOf(ch);
+        if (idx >= 0) children.splice(idx, 1);
+        ch.parentElement = null; ch.parentNode = null;
+        return ch;
+      },
+      remove() { if (this.parentElement) this.parentElement.removeChild(this); },
+      setAttribute(k, v) { attrs.set(k, String(v)); if (k === 'id') this.id = String(v); },
+      getAttribute(k) { return attrs.has(k) ? attrs.get(k) : null; },
+      hasAttribute(k) { return attrs.has(k); },
+      removeAttribute(k) { attrs.delete(k); },
+      toggleAttribute(k, force) {
+        const on = force === undefined ? !attrs.has(k) : Boolean(force);
+        if (on) attrs.set(k, ''); else attrs.delete(k);
+        return on;
+      },
+      addEventListener(ev, cb) {
+        if (!listeners.has(ev)) listeners.set(ev, []);
+        listeners.get(ev).push(cb);
+      },
+      removeEventListener(ev, cb) {
+        const arr = listeners.get(ev);
+        if (!arr) return;
+        const idx = arr.indexOf(cb);
+        if (idx >= 0) arr.splice(idx, 1);
+      },
+      dispatch(ev, payload = {}) {
+        const list = listeners.get(ev) || [];
+        for (const fn of [...list]) fn({ type: ev, stopPropagation() {}, preventDefault() {}, ...payload });
+      },
+      getContext() { return null; },
+      getBoundingClientRect() { return { left: 0, top: 0, right: 1280, bottom: 720, width: 1280, height: 720 }; },
+      animate() { return { cancel() {}, finished: Promise.resolve() }; },
+      closest(sel) {
+        let cur = this;
+        while (cur) {
+          if (matches(cur, sel)) return cur;
+          cur = cur.parentElement;
+        }
+        return null;
+      },
+      querySelector(sel) { return this.querySelectorAll(sel)[0] || null; },
+      querySelectorAll(sel) {
+        const out = [];
+        const walk = (n) => {
+          for (const c of n.children) {
+            if (matches(c, sel)) out.push(c);
+            walk(c);
+          }
+        };
+        walk(this);
+        return out;
+      },
+    };
+    return node;
+  }
+
+  function matchesSimple(node, simple) {
+    let rest = simple.trim();
+    if (!rest) return false;
+    const tagMatch = /^[a-zA-Z0-9_-]+/.exec(rest);
+    if (tagMatch) {
+      if (node.tagName !== tagMatch[0].toUpperCase()) return false;
+      rest = rest.slice(tagMatch[0].length);
+    }
+    while (rest.length > 0) {
+      if (rest[0] === '#') {
+        const m = /^#([a-zA-Z0-9_-]+)/.exec(rest);
+        if (!m || node.id !== m[1]) return false;
+        rest = rest.slice(m[0].length);
+      } else if (rest[0] === '.') {
+        const m = /^\.([a-zA-Z0-9_-]+)/.exec(rest);
+        if (!m || !node.classList.contains(m[1])) return false;
+        rest = rest.slice(m[0].length);
+      } else if (rest[0] === '[') {
+        const m = /^\[([^\]=]+)(?:="([^"]*)")?\]/.exec(rest);
+        if (!m) return false;
+        const ok = m[2] === undefined ? node.hasAttribute(m[1]) : node.getAttribute(m[1]) === m[2];
+        if (!ok) return false;
+        rest = rest.slice(m[0].length);
+      } else {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function matches(node, selector) {
+    return selector.split(',').some((part) => {
+      const tokens = part.trim().split(/\s+/).filter(Boolean);
+      if (tokens.length === 0) return false;
+      if (!matchesSimple(node, tokens[tokens.length - 1])) return false;
+      let cur = node.parentElement;
+      let idx = tokens.length - 2;
+      while (cur && idx >= 0) {
+        if (matchesSimple(cur, tokens[idx])) idx--;
+        cur = cur.parentElement;
+      }
+      return idx < 0;
+    });
+  }
+
+  const html = makeNode('html');
+  const head = makeNode('head');
+  const body = makeNode('body', { className: 'theme-light' });
+  html.appendChild(head);
+  html.appendChild(body);
+
+  const home = makeNode('div', { className: 'agy-home' });
+  const greeting = makeNode('div', { attrs: { 'data-testid': 'home-greeting' } });
+  greeting.appendChild(makeNode('h1', { className: 'home-greeting-title', text: 'Welcome back' }));
+  home.appendChild(greeting);
+
+  const inputBox = makeNode('div', { attrs: { 'data-testid': 'agent-input-box' } });
+  const shell = makeNode('div', { className: 'surface-composer' });
+  const card = makeNode('div', { className: 'surface-composer-card' });
+  shell.appendChild(card);
+  inputBox.appendChild(shell);
+  home.appendChild(inputBox);
+  body.appendChild(home);
+
+  const doc = {
+    documentElement: html,
+    head,
+    body,
+    hidden: false,
+    createElement: (t) => makeNode(t),
+    getElementById: (id) => html.querySelector('#' + id),
+    querySelector: (s) => html.querySelector(s),
+    querySelectorAll: (s) => html.querySelectorAll(s),
+    addEventListener() {},
+    removeEventListener() {},
+  };
+
+  const bindingCalls = [];
+  const timers = new Set();
+  const sandbox = {
+    window: null,
+    globalThis: null,
+    document: doc,
+    navigator: { language: 'en-US' },
+    location: { protocol: 'https:', origin: 'https://antigravity.local', pathname: '/' },
+    localStorage: { _m: {}, getItem(k) { return this._m[k] || null; }, setItem(k, v) { this._m[k] = String(v); } },
+    getComputedStyle: () => ({ getPropertyValue: () => '' }),
+    matchMedia: () => ({ matches: false }),
+    MutationObserver: class { observe() {} disconnect() {} },
+    ResizeObserver: class { observe() {} disconnect() {} },
+    requestAnimationFrame: (fn) => { const id = setTimeout(() => fn(Date.now()), 5); timers.add(id); return id; },
+    cancelAnimationFrame: (id) => { timers.delete(id); clearTimeout(id); },
+    setTimeout: (fn, ms) => { const id = setTimeout(fn, ms); timers.add(id); return id; },
+    clearTimeout: (id) => { timers.delete(id); clearTimeout(id); },
+    setInterval: () => 1,
+    clearInterval: () => {},
+    performance: { now: () => Date.now() },
+    [cdp.SETTING_BINDING]: (payload) => bindingCalls.push(JSON.parse(payload)),
+    Math, Date, JSON, Map, Set, Array, Object, String, Number, Boolean, Promise, Uint8Array, Float32Array, Intl,
+  };
+  sandbox.window = sandbox;
+  sandbox.globalThis = sandbox;
+
+  try {
+    const res = vm.runInNewContext(
+      cdp.buildInjectExpression({ ...cdp.DEFAULT_CONFIG, language: 'en', palette: 'claude', claudeFmSource: 'synth' }),
+      sandbox
+    );
+    assert.equal(res.status, 'ok');
+    assert.ok(home.querySelector('.ag-cs-claude-fm-host'));
+    assert.ok(home.querySelector('.ag-cs-claude-fm-canvas'));
+    assert.equal(home.querySelector('.ag-cs-claude-fm-video'), null);
+    assert.equal(home.querySelector('.ag-cs-ripple-host'), null);
+
+    const bar = body.querySelector('.ag-cs-fm-bar');
+    assert.ok(bar, 'Top bar Claude FM player is mounted');
+    const playBtn = bar.querySelector('.ag-cs-fm-play');
+    const muteBtn = bar.querySelector('.ag-cs-fm-mute');
+    const motionBtn = bar.querySelector('.ag-cs-fm-motion');
+    const srcBtn = bar.querySelector('.ag-cs-fm-source');
+    const ytLink = bar.querySelector('.ag-cs-fm-link');
+
+    assert.equal(playBtn.hasAttribute('aria-pressed'), false, 'WCAG: play button toggles aria-label without aria-pressed');
+    assert.equal(playBtn.getAttribute('aria-label'), 'Play Claude FM');
+    assert.equal(ytLink.href || ytLink.getAttribute('href'), 'https://www.youtube.com/live/tRsQsTMvPNg');
+
+    // Start playback -> top bar reflects playing, and idle Clawd switches to music mood
+    playBtn.dispatch('click');
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(bar.getAttribute('data-playing'), '1');
+    assert.equal(playBtn.getAttribute('aria-label'), 'Pause Claude FM');
+    assert.equal(sandbox.window.__agClaudeStyle.getState().claudeFmPlaying, true);
+    const crab = card.querySelector('.ag-cs-crab');
+    assert.equal(crab?.getAttribute('data-animation'), 'music');
+
+    // Toggle mute & motion pause
+    muteBtn.dispatch('click');
+    assert.equal(bar.getAttribute('data-muted'), '1');
+    motionBtn.dispatch('click');
+    assert.equal(bar.getAttribute('data-motion-paused'), '1');
+    assert.equal(motionBtn.getAttribute('aria-label'), 'Resume live background animation');
+
+    // Switch audio source -> persists setting via CDP binding
+    srcBtn.dispatch('click');
+    assert.equal(bindingCalls.some((c) => c.key === 'claudeFmSource' && c.value === 'youtube'), true);
+
+    // Switch liveBackground to 'youtube' -> mounts full-bleed muted YouTube live video iframe + canvas underlay
+    sandbox.window.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, language: 'en', liveBackground: 'youtube' });
+    const ytBg = home.querySelector('.ag-cs-claude-fm-video');
+    assert.ok(ytBg, 'YouTube live background iframe is mounted in youtube mode');
+    assert.ok(ytBg.src.includes('tRsQsTMvPNg'));
+
+    // Switch to 'ripple' -> unmounts Claude FM background and mounts Ripple matrix
+    sandbox.window.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, language: 'en', liveBackground: 'ripple', homeRipple: true });
+    assert.equal(home.querySelector('.ag-cs-claude-fm-host'), null);
+    assert.ok(home.querySelector('.ag-cs-ripple-host'));
+
+    // Switch to 'off' -> unmounts both
+    sandbox.window.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, language: 'en', liveBackground: 'off' });
+    assert.equal(home.querySelector('.ag-cs-claude-fm-host'), null);
+    assert.equal(home.querySelector('.ag-cs-ripple-host'), null);
+
+    // Full teardown removes everything cleanly
+    vm.runInNewContext(cdp.REMOVE_EXPRESSION, sandbox);
+    assert.equal(body.querySelector('.ag-cs-fm-bar'), null);
+    assert.equal(body.querySelector('.ag-cs-fm-yt-dock'), null);
+    assert.equal(home.querySelector('.ag-cs-claude-fm-host'), null);
+    assert.equal(sandbox.globalThis.__agCsClaudeFmCore, undefined);
+  } finally {
+    for (const id of timers) clearTimeout(id);
+  }
 });

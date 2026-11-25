@@ -27,6 +27,10 @@ const DEFAULT_CONFIG = {
   palette: 'obsidian',
   homeLayout: 'studio',
   homeRipple: true,
+  liveBackground: 'claude-fm',
+  claudeFmBar: true,
+  claudeFmSource: 'youtube',
+  claudeFmVolume: 55,
   composerRestyle: true,
   mascot: 'crab',
   logoInk: 'accent',
@@ -56,6 +60,9 @@ const CONFIG_VALIDATORS = {
   palette: ['obsidian', 'claude', 'host'],
   homeLayout: ['studio', 'classic', 'off'],
   homeRipple: 'boolean',
+  liveBackground: ['claude-fm', 'youtube', 'ripple', 'off'],
+  claudeFmBar: 'boolean',
+  claudeFmSource: ['youtube', 'synth'],
   composerRestyle: 'boolean',
   mascot: ['crab', 'off'],
   logoInk: ['accent', 'foreground'],
@@ -81,6 +88,9 @@ const CONFIG_VALIDATORS = {
 function validateConfigSetting(key, value) {
   if (key === 'pollIntervalMs') {
     return Number.isInteger(value) && value >= 250 && value <= 60000;
+  }
+  if (key === 'claudeFmVolume') {
+    return Number.isInteger(value) && value >= 0 && value <= 100;
   }
   if (!Object.prototype.hasOwnProperty.call(CONFIG_VALIDATORS, key)) return false;
   const rule = CONFIG_VALIDATORS[key];
@@ -254,7 +264,7 @@ function readCss() {
   return fs.readFileSync(path.join(__dirname, 'style.css'), 'utf8');
 }
 
-const RUNTIME_PARTS = ['i18n-locales.js', 'i18n-core.js', 'sidecar-core.js', 'usage-core.js', 'ripple-core.js', 'mascot-core.js', 'crab-assets.js', 'effort-core.js', 'perf-assets.js', 'ui-runtime.js'];
+const RUNTIME_PARTS = ['i18n-locales.js', 'i18n-core.js', 'sidecar-core.js', 'usage-core.js', 'ripple-core.js', 'claude-fm-core.js', 'mascot-core.js', 'crab-assets.js', 'effort-core.js', 'perf-assets.js', 'ui-runtime.js'];
 
 function readRuntimeBundle() {
   return RUNTIME_PARTS.map((f) => fs.readFileSync(path.join(__dirname, f), 'utf8')).join('\n');
@@ -393,6 +403,7 @@ const REMOVE_EXPRESSION = `(() => {
   delete globalThis.__agCsUiMain;
   delete globalThis.__agCsCrabAssets;
   delete globalThis.__agCsMascotCore;
+  delete globalThis.__agCsClaudeFmCore;
   delete globalThis.__agCsRippleCore;
   delete globalThis.__agCsUsageCore;
   delete globalThis.__agCsEffortCore;
@@ -404,12 +415,14 @@ const REMOVE_EXPRESSION = `(() => {
   if (root) {
     root.removeAttribute('data-ag-cs-effort-accent');
     root.removeAttribute('data-ag-cs-perf-backdrop');
+    root.removeAttribute('data-ag-cs-live-bg');
+    root.removeAttribute('data-ag-cs-fm-bar');
     root.removeAttribute('data-ag-cs-lang');
     root.removeAttribute('data-ag-cs-cjk');
     if (root.getAttribute('data-ag-cjk') === '1') root.removeAttribute('data-ag-cjk');
   }
   const nodes = document.querySelectorAll(
-    'style#${STYLE_ID}, style#ag-token-hud-style, .ag-cs-home-panel-seat, .ag-cs-ripple-host, .ag-cs-ripple-canvas, .ag-cs-crab, .ag-cs-inline-stats, .ag-cs-context-ring, .ag-cs-ctx-popover, .ag-cs-effort-popover, .ag-cs-perf-backdrop, .ag-cs-smooth-caret, .ag-cs-turn-bar, .ag-cs-hud-top-bar, .ag-cs-hud-bottom-bar, .ag-cs-hud-rim-progress, .ag-cs-hud-footer-chip, #ag-cs-settings-sec, .ag-th-top-bar, .ag-th-bottom-bar, .ag-th-rim-progress, .ag-th-footer-chip, .ag-th-popover, .ag-th-turn-bar, .ag-th-reopen-pill'
+    'style#${STYLE_ID}, style#ag-token-hud-style, .ag-cs-home-panel-seat, .ag-cs-ripple-host, .ag-cs-ripple-canvas, .ag-cs-claude-fm-host, .ag-cs-claude-fm-canvas, .ag-cs-claude-fm-video, .ag-cs-fm-bar, .ag-cs-fm-yt-dock, .ag-cs-crab, .ag-cs-inline-stats, .ag-cs-context-ring, .ag-cs-ctx-popover, .ag-cs-effort-popover, .ag-cs-perf-backdrop, .ag-cs-smooth-caret, .ag-cs-turn-bar, .ag-cs-hud-top-bar, .ag-cs-hud-bottom-bar, .ag-cs-hud-rim-progress, .ag-cs-hud-footer-chip, #ag-cs-settings-sec, .ag-th-top-bar, .ag-th-bottom-bar, .ag-th-rim-progress, .ag-th-footer-chip, .ag-th-popover, .ag-th-turn-bar, .ag-th-reopen-pill'
   );
   nodes.forEach((n) => n.remove());
   return { removed: nodes.length };

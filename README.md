@@ -48,9 +48,10 @@
 <a id="核心特性"></a>
 ## ✨ 核心特性
 
-### 🌌 1. Studio 首页与会呼吸的字符波纹海
+### 🌌 1. Studio 首页、Claude FM 动态风景与字符波纹海
 - **保留原生特征与主题配色**：首页顶部保留 Antigravity 原生拱形 Logo（支持 `accent` / `foreground` 配色切换），与问候语水平对齐；提供 `obsidian`（黑曜石蓝暗色）、`claude` 与 `host`（跟随宿主）三套调色板，自动适配深色与浅色主题 🎨。
-- **实时字符矩阵波纹场 (`homeRipple`)**：在首页铺设等宽字母数字二维波动网格，带云雾漂移氛围效果；轻点空白处就像把小石子丢进字符星空，触发柔和的阻尼水波纹扩散动画 `~(˘▾˘~)`。
+- **Claude FM 动态风景 & 顶栏电台 (`liveBackground` / `claudeFmBar`)**：默认复刻 [Claude FM](https://www.youtube.com/live/tRsQsTMvPNg) 直播同款 ASCII 云海山谷与行走像素小旅人 Clawd（随音频播放戴上耳机并飘起音符 `♪ ♫`），亦可一键切换为 **YouTube 直播原画面** 或经典 **字符矩阵波纹 (`homeRipple`)**；窗口顶栏常驻轻量 **Claude FM 音乐控制条**，支持播放直播电台或零依赖离线 Lo-Fi 合成器、音量调节与动态背景暂停 🎧。
+- **实时字符矩阵波纹场 (`homeRipple`)**：切换 `liveBackground: 'ripple'` 可在首页铺设等宽字母数字二维波动网格，带云雾漂移氛围效果；轻点空白处就像把小石子丢进字符星空，触发柔和的阻尼水波纹扩散动画 `~(˘▾˘~)`。
 - **编程用量仪表盘 (`概览` / `模型` · `全部` / `30 天` / `7 天`)**：自动聚合本地对话轨迹并剔除子代理重复会话计数，展示 6 项核心指标（会话数、消息数、Token 总量、活跃天数、高峰时段、最常用模型）、`26×7` 周日历热力图、30d/7d 模型堆叠柱状图，以及**60+ 本经典著作 Token 折算标尺**——悄悄告诉你今天写的代码相当于读了几本《爱丽丝漫游奇境》或《哈利·波特》📖✨。
 
 ### ⌨️ 2. 极简重排输入框、丝滑光标与温柔侧栏
@@ -80,7 +81,7 @@
 
 ### 🌐 6. 5 语言全局切换 & 设置面板原生集成
 - **5 语言全局本地化 (`language`)**：支持 **简体中文 (`zh-CN`) / 繁體中文 (`zh-TW`) / 粵語 (`yue`) / English (`en`) / 日本語 (`ja`)** 实时切换，作用于整个 Antigravity 主界面、Plan / Orchestrator 编排模式、插件面板以及 **Swarm 蜂群侧栏 (`plugin://swarm--` OOPIF)**；自动跳过代码编辑器、终端、对话/帖子正文与 `data-ag-no-i18n` 保护区，移除插件时无损还原。
-- **原生设置集成**：在 Antigravity `设置 → 外观` 底部自动注入 3 组共 20 项可视化开关，修改通过 CDP `Runtime.addBinding` 以轻量热更新即时生效，并经字段校验后原子写入 `config.json` 持久化。
+- **原生设置集成**：在 Antigravity `设置 → 外观` 底部自动注入 3 组共 23 项可视化开关，修改通过 CDP `Runtime.addBinding` 以轻量热更新即时生效，并经字段校验后原子写入 `config.json` 持久化。
 
 ---
 
@@ -285,7 +286,11 @@ AGY Claude Style 提供两种运行模式。**默认推荐「托管启动模式�
 | `language` | `'zh-CN'` \| `'zh-TW'` \| `'yue'` \| `'en'` \| `'ja'` | `'zh-CN'` | 🌐 全局界面与插件面板语言（简中/繁中/粤语/英文/日语） |
 | `palette` | `'obsidian'` \| `'claude'` \| `'host'` | `'obsidian'` | 🎨 配色方案（黑曜石蓝暗色 / Claude / 跟随宿主） |
 | `homeLayout` | `'studio'` \| `'classic'` \| `'off'` | `'studio'` | 🏠 新会话首页布局模式 |
-| `homeRipple` | `boolean` | `true` | 🌊 首页交互式字符矩阵波纹背景 |
+| `liveBackground` | `'claude-fm'` \| `'youtube'` \| `'ripple'` \| `'off'` | `'claude-fm'` | 📻 首页动态背景模式（Claude FM ASCII 旅人风景 / YouTube 直播原画面 / 字符波纹 / 关闭） |
+| `claudeFmBar` | `boolean` | `true` | 🎵 顶部栏 Claude FM 音乐控制条（播放/暂停、音源切换、静音、音量与动画暂停） |
+| `claudeFmSource` | `'youtube'` \| `'synth'` | `'youtube'` | 🎧 Claude FM 音频来源（YouTube 官方直播流或内置零依赖 Lo-Fi 合成器） |
+| `claudeFmVolume` | `integer`（`0`–`100`） | `55` | 🔊 Claude FM 音乐播放器默认音量百分比 |
+| `homeRipple` | `boolean` | `true` | 🌊 当 `liveBackground` 为 `'ripple'` 时启用交互式字符矩阵波纹背景 |
 | `composerRestyle` | `boolean` | `true` | 💊 极简胶囊工作区栏与输入框重排 |
 | `mascot` | `'crab'` \| `'off'` | `'crab'` | 🦀 输入框右上角像素螃蟹挂件 `Clawd` |
 | `logoInk` | `'accent'` \| `'foreground'` | `'accent'` | ✒️ 首页 Antigravity Logo 线条色调 |
@@ -343,6 +348,7 @@ agy-claude-style/
 ├── usage-core.js                      # 会话轨迹解析、Token 拆分、配额池匹配、热力图与书籍标尺计算
 ├── effort-core.js                     # 推理档位解析、阻尼刻度数学模型与 3 套滑块逻辑
 ├── mascot-core.js                     # 像素螃蟹 Clawd 状态机（休眠、唤醒、反应、状态优先级）
+├── claude-fm-core.js                  # Claude FM ASCII 山谷旅人动态背景渲染器、YouTube 嵌入工具与 Lo-Fi 合成器
 ├── ripple-core.js                     # 首页字符矩阵噪声与二维水波方程求解器
 ├── crab-assets.js                     # 内置 19 套像素螃蟹双层精灵图（body + ink PNG Data URI）
 ├── perf-assets.js                     # 内置 31 帧 320×320 WebP 人像序列

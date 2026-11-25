@@ -53,6 +53,7 @@
 
   const usageCore = globalThis.__agCsUsageCore;
   const rippleCore = globalThis.__agCsRippleCore;
+  const claudeFmCore = globalThis.__agCsClaudeFmCore;
   const mascotCore = globalThis.__agCsMascotCore;
   const crabAssets = globalThis.__agCsCrabAssets;
   const effortCore = globalThis.__agCsEffortCore;
@@ -182,8 +183,17 @@
     if (inHero && cfg.homeLayout === 'studio') renderHomePanel(true);
     refreshOpenEffortPopover();
     refreshOpenContextPopover();
+    refreshClaudeFmBarLabels();
     syncComposers();
     ensureSettingsSection();
+  }
+
+  function resolveLiveBgMode() {
+    if (cfg.homeLayout === 'off') return 'off';
+    if (claudeFmCore && typeof claudeFmCore.normalizeLiveBackground === 'function') {
+      return claudeFmCore.normalizeLiveBackground(cfg.liveBackground, cfg.homeRipple);
+    }
+    return cfg.homeRipple === false ? 'off' : 'ripple';
   }
 
   function applyRootAttrs() {
@@ -194,6 +204,8 @@
     html.setAttribute('data-ag-cs-style', '1');
     html.setAttribute('data-ag-cs-palette', palette);
     html.setAttribute('data-ag-cs-home', cfg.homeLayout === 'classic' ? 'classic' : cfg.homeLayout === 'off' ? 'off' : 'studio');
+    html.setAttribute('data-ag-cs-live-bg', resolveLiveBgMode());
+    html.setAttribute('data-ag-cs-fm-bar', cfg.claudeFmBar === false ? 'off' : 'on');
     html.setAttribute('data-ag-cs-composer', cfg.composerRestyle === false ? 'off' : 'on');
     html.setAttribute('data-ag-cs-logo-ink', cfg.logoInk === 'foreground' ? 'foreground' : 'accent');
     html.setAttribute('data-ag-cs-sidebar', cfg.sidebarRestyle === false ? 'off' : 'on');
@@ -232,6 +244,9 @@
       lastThemeKey = themeKey;
       if (rippleMount && typeof rippleMount.refreshTheme === 'function') {
         rippleMount.refreshTheme();
+      }
+      if (claudeFmMount && typeof claudeFmMount.refreshTheme === 'function') {
+        claudeFmMount.refreshTheme();
       }
       refreshOpenEffortPopover();
     }
@@ -1239,7 +1254,8 @@
   }
 
   function syncRipple() {
-    const home = cfg.homeRipple !== false && cfg.homeLayout !== 'off' ? document.querySelector('.agy-home') : null;
+    const mode = resolveLiveBgMode();
+    const home = mode === 'ripple' && cfg.homeRipple !== false && cfg.homeLayout !== 'off' ? document.querySelector('.agy-home') : null;
     if (rippleMount && (rippleMount.root !== home || !rippleMount.canvas.isConnected)) {
       unmountRipple();
     }
@@ -1378,6 +1394,552 @@
     };
     wake();
     rippleMount = state;
+  }
+
+  // ── Claude FM Live Background & Top Bar Music Player ───────────────────
+  let claudeFmMount = null;
+  const fmState = {
+    playing: false,
+    muted: false,
+    volume: claudeFmCore ? claudeFmCore.clampVolume(cfg.claudeFmVolume) : 55,
+    userMotionPaused: false,
+    fallbackActive: false,
+    bar: null,
+    ytFrame: null,
+    ytReady: false,
+    ytFallbackTimer: 0,
+    synth: null,
+    onMsg: null,
+  };
+
+  function getActiveAudioSource() {
+    if (fmState.fallbackActive) return 'synth';
+    return claudeFmCore ? claudeFmCore.normalizeAudioSource(cfg.claudeFmSource) : 'youtube';
+  }
+
+  function ensureFmSynth() {
+    if (!fmState.synth && claudeFmCore && typeof claudeFmCore.createAmbientSynthEngine === 'function') {
+      fmState.synth = claudeFmCore.createAmbientSynthEngine(window);
+      fmState.synth.setVolume(fmState.volume);
+      fmState.synth.setMuted(fmState.muted);
+    }
+    return fmState.synth;
+  }
+
+  function clearYtFallbackTimer() {
+    if (fmState.ytFallbackTimer) {
+      clearTimeout(fmState.ytFallbackTimer);
+      fmState.ytFallbackTimer = 0;
+    }
+  }
+
+  function teardownYtAudioDock() {
+    clearYtFallbackTimer();
+    if (fmState.onMsg && typeof window.removeEventListener === 'function') {
+      try {
+        window.removeEventListener('message', fmState.onMsg);
+      } catch {}
+      fmState.onMsg = null;
+    }
+    if (fmState.ytFrame && typeof fmState.ytFrame.remove === 'function') {
+      fmState.ytFrame.remove();
+    }
+    fmState.ytFrame = null;
+    fmState.ytReady = false;
+  }
+
+  function postYtAudioCmd(func, args = []) {
+    if (!fmState.ytFrame || !fmState.ytFrame.contentWindow || !claudeFmCore) return;
+    try {
+      fmState.ytFrame.contentWindow.postMessage(claudeFmCore.buildYouTubeCommand(func, args), '*');
+    } catch {}
+  }
+
+  function ensureYtAudioDock() {
+    if (fmState.ytFrame && fmState.ytFrame.isConnected) return fmState.ytFrame;
+    if (!document.body || !claudeFmCore) return null;
+    const iframe = document.createElement('iframe');
+    iframe.className = 'ag-cs-fm-yt-dock';
+    iframe.setAttribute('title', 'Claude FM audio stream');
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.setAttribute('tabindex', '-1');
+    iframe.setAttribute('allow', 'autoplay; encrypted-media');
+    iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+    iframe.src = claudeFmCore.buildYouTubeEmbedUrl({
+      autoplay: true,
+      mute: fmState.muted,
+      background: false,
+      origin: typeof location !== 'undefined' && /^https?:$/i.test(location.protocol) ? location.origin : '',
+    });
+    if (!fmState.onMsg && typeof window.addEventListener === 'function') {
+      fmState.onMsg = (ev) => {
+        if (!ev || typeof ev.origin !== 'string' || !ev.origin.includes('youtube')) return;
+        let payload = ev.data;
+        if (typeof payload === 'string') {
+          try {
+            payload = JSON.parse(payload);
+          } catch {
+            return;
+          }
+        }
+        if (payload && (payload.event === 'onReady' || payload.event === 'infoDelivery' || payload.event === 'initialDelivery')) {
+          fmState.ytReady = true;
+          clearYtFallbackTimer();
+          postYtAudioCmd('setVolume', [fmState.volume]);
+          postYtAudioCmd(fmState.muted ? 'mute' : 'unMute');
+          postYtAudioCmd(fmState.playing ? 'playVideo' : 'pauseVideo');
+        }
+      };
+      window.addEventListener('message', fmState.onMsg);
+    }
+    iframe.addEventListener('load', () => {
+      postYtAudioCmd('listening');
+      postYtAudioCmd('setVolume', [fmState.volume]);
+      postYtAudioCmd(fmState.muted ? 'mute' : 'unMute');
+      if (fmState.playing) postYtAudioCmd('playVideo');
+    });
+    document.body.appendChild(iframe);
+    fmState.ytFrame = iframe;
+    return iframe;
+  }
+
+  function syncAudioPlayback() {
+    const wantedSrc = claudeFmCore ? claudeFmCore.normalizeAudioSource(cfg.claudeFmSource) : 'youtube';
+    if (!fmState.playing) {
+      clearYtFallbackTimer();
+      postYtAudioCmd('pauseVideo');
+      if (fmState.synth) fmState.synth.pause();
+    } else if (wantedSrc === 'synth' || fmState.fallbackActive) {
+      clearYtFallbackTimer();
+      postYtAudioCmd('pauseVideo');
+      const s = ensureFmSynth();
+      if (s) {
+        s.setVolume(fmState.volume);
+        s.setMuted(fmState.muted);
+        s.play();
+      }
+    } else {
+      if (fmState.synth) fmState.synth.pause();
+      const frame = ensureYtAudioDock();
+      if (frame) {
+        postYtAudioCmd('setVolume', [fmState.volume]);
+        postYtAudioCmd(fmState.muted ? 'mute' : 'unMute');
+        postYtAudioCmd('playVideo');
+        if (!fmState.ytReady && !fmState.ytFallbackTimer) {
+          fmState.ytFallbackTimer = setTimeout(() => {
+            fmState.ytFallbackTimer = 0;
+            if (destroyed || !fmState.playing || fmState.ytReady) return;
+            fmState.fallbackActive = true;
+            const s = ensureFmSynth();
+            if (s) {
+              s.setVolume(fmState.volume);
+              s.setMuted(fmState.muted);
+              s.play();
+            }
+            refreshClaudeFmBarLabels();
+          }, 5000);
+        }
+      } else {
+        fmState.fallbackActive = true;
+        const s = ensureFmSynth();
+        if (s) s.play();
+      }
+    }
+    if (claudeFmMount && typeof claudeFmMount.setAudioActive === 'function') {
+      claudeFmMount.setAudioActive(fmState.playing);
+    }
+    refreshClaudeFmBarLabels();
+    scheduleSync();
+  }
+
+  function unmountLiveBackground() {
+    if (!claudeFmMount) return;
+    if (claudeFmMount.ro && typeof claudeFmMount.ro.disconnect === 'function') claudeFmMount.ro.disconnect();
+    if (claudeFmMount.root && typeof claudeFmMount.root.removeEventListener === 'function') {
+      claudeFmMount.root.removeEventListener('pointerdown', claudeFmMount.onPress);
+      claudeFmMount.root.removeEventListener('pointermove', claudeFmMount.onMove);
+    }
+    document.removeEventListener('visibilitychange', claudeFmMount.onVis);
+    if (claudeFmMount.scene && typeof claudeFmMount.scene.dispose === 'function') {
+      claudeFmMount.scene.dispose();
+    }
+    if (claudeFmMount.host && typeof claudeFmMount.host.remove === 'function') {
+      claudeFmMount.host.remove();
+    }
+    claudeFmMount = null;
+  }
+
+  function syncLiveBackground() {
+    const mode = resolveLiveBgMode();
+    const activeMode = mode === 'claude-fm' || mode === 'youtube';
+    const home = activeMode && claudeFmCore ? document.querySelector('.agy-home') : null;
+    if (claudeFmMount && (claudeFmMount.root !== home || !claudeFmMount.canvas.isConnected)) {
+      unmountLiveBackground();
+    }
+    if (!home) return;
+
+    if (!claudeFmMount) {
+      const host = document.createElement('div');
+      host.className = 'ag-cs-claude-fm-host';
+      host.setAttribute('aria-hidden', 'true');
+      host.setAttribute('data-ag-no-i18n', '');
+      const canvas = document.createElement('canvas');
+      canvas.className = 'ag-cs-claude-fm-canvas';
+      canvas.setAttribute('aria-hidden', 'true');
+      host.appendChild(canvas);
+      home.insertBefore(host, home.firstChild);
+
+      const cs = typeof getComputedStyle === 'function' ? getComputedStyle(canvas) : null;
+      const fontFamily = cs?.getPropertyValue?.('--font-mono')?.trim() || 'ui-monospace, Consolas, monospace';
+      const scene = claudeFmCore.createClaudeFmScene(canvas, {
+        palette: cfg.palette || 'obsidian',
+        isDark: isDarkTheme(),
+        audioActive: fmState.playing,
+        paused: fmState.userMotionPaused || document.hidden,
+        fontFamily,
+      });
+
+      const state = {
+        root: home,
+        host,
+        canvas,
+        video: null,
+        scene,
+        ro: null,
+        width: -1,
+        height: -1,
+        onPress: null,
+        onMove: null,
+        onVis: null,
+        refreshTheme: () => {
+          scene.setPalette(cfg.palette || 'obsidian', isDarkTheme());
+        },
+        setAudioActive: (playing) => {
+          scene.setAudioActive(playing);
+        },
+        setMotionPaused: (paused) => {
+          if (paused) scene.pause();
+          else if (!document.hidden) scene.resume();
+        },
+      };
+
+      const layout = () => {
+        const w = home.clientWidth || 0;
+        const h = home.clientHeight || 0;
+        if (w === state.width && h === state.height) return;
+        state.width = w;
+        state.height = h;
+        scene.resize(w, h, Math.min(window.devicePixelRatio || 1, 2));
+        if (!fmState.userMotionPaused && !document.hidden) scene.start();
+        else scene.renderFrame(0);
+      };
+
+      state.onPress = (ev) => {
+        if (ev.button !== 0) return;
+        const rect = typeof canvas.getBoundingClientRect === 'function' ? canvas.getBoundingClientRect() : { left: 0, top: 0 };
+        scene.triggerGust((ev.clientX || 0) - rect.left, (ev.clientY || 0) - rect.top);
+      };
+      state.onMove = (ev) => {
+        if (!state.width || !state.height) return;
+        const rect = typeof canvas.getBoundingClientRect === 'function' ? canvas.getBoundingClientRect() : { left: 0, top: 0, width: state.width, height: state.height };
+        const nx = (((ev.clientX || 0) - rect.left) / Math.max(1, rect.width || state.width)) * 2 - 1;
+        const ny = (((ev.clientY || 0) - rect.top) / Math.max(1, rect.height || state.height)) * 2 - 1;
+        scene.setPointerOffset(nx, ny);
+      };
+      home.addEventListener('pointerdown', state.onPress, { passive: true });
+      home.addEventListener('pointermove', state.onMove, { passive: true });
+
+      state.onVis = () => {
+        if (document.hidden) scene.pause();
+        else if (!fmState.userMotionPaused) scene.resume();
+      };
+      document.addEventListener('visibilitychange', state.onVis);
+
+      if (typeof ResizeObserver === 'function') {
+        state.ro = new ResizeObserver(() => layout());
+        state.ro.observe(home);
+      }
+      layout();
+      claudeFmMount = state;
+    }
+
+    // Manage YouTube visual video layer when mode === 'youtube'
+    if (mode === 'youtube') {
+      if (!claudeFmMount.video || !claudeFmMount.video.isConnected) {
+        const iframe = document.createElement('iframe');
+        iframe.className = 'ag-cs-claude-fm-video';
+        iframe.setAttribute('title', 'Claude FM live visual background');
+        iframe.setAttribute('aria-hidden', 'true');
+        iframe.setAttribute('tabindex', '-1');
+        iframe.setAttribute('allow', 'autoplay; encrypted-media; picture-in-picture');
+        iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+        iframe.src = claudeFmCore.buildYouTubeEmbedUrl({
+          autoplay: true,
+          mute: true,
+          background: true,
+        });
+        iframe.addEventListener('load', () => {
+          iframe.setAttribute('data-loaded', '1');
+        });
+        claudeFmMount.host.appendChild(iframe);
+        claudeFmMount.video = iframe;
+      }
+    } else if (claudeFmMount.video) {
+      if (typeof claudeFmMount.video.remove === 'function') claudeFmMount.video.remove();
+      claudeFmMount.video = null;
+    }
+  }
+
+  function makeFmIcon(svgPath) {
+    const svgNs = 'http://www.w3.org/2000/svg';
+    const svg = typeof document.createElementNS === 'function' ? document.createElementNS(svgNs, 'svg') : document.createElement('svg');
+    svg.setAttribute('viewBox', '0 0 16 16');
+    svg.setAttribute('width', '13');
+    svg.setAttribute('height', '13');
+    svg.setAttribute('fill', 'currentColor');
+    svg.setAttribute('aria-hidden', 'true');
+    const p = typeof document.createElementNS === 'function' ? document.createElementNS(svgNs, 'path') : document.createElement('path');
+    p.setAttribute('d', svgPath);
+    svg.appendChild(p);
+    return svg;
+  }
+
+  function refreshClaudeFmBarLabels() {
+    const bar = fmState.bar;
+    if (!bar || !bar.isConnected) return;
+    const ui = uiText();
+    const src = getActiveAudioSource();
+    bar.setAttribute('data-playing', fmState.playing ? '1' : '0');
+    bar.setAttribute('data-muted', fmState.muted ? '1' : '0');
+    bar.setAttribute('data-motion-paused', fmState.userMotionPaused ? '1' : '0');
+    bar.setAttribute('data-source', src);
+
+    const playBtn = bar.querySelector('.ag-cs-fm-play');
+    if (playBtn) {
+      playBtn.setAttribute('aria-label', fmState.playing ? ui.fmPauseLabel || 'Pause Claude FM' : ui.fmPlayLabel || 'Play Claude FM');
+      playBtn.setAttribute('title', fmState.playing ? ui.fmPauseLabel || 'Pause Claude FM' : ui.fmPlayLabel || 'Play Claude FM');
+      const iconHost = playBtn.querySelector('.ag-cs-fm-play-ico');
+      if (iconHost) {
+        iconHost.textContent = '';
+        iconHost.appendChild(
+          makeFmIcon(
+            fmState.playing
+              ? 'M4.5 3.5h2.2v9H4.5zm4.8 0h2.2v9H9.3z'
+              : 'M4.5 3.2l8 4.8-8 4.8V3.2z'
+          )
+        );
+      }
+    }
+
+    const titleEl = bar.querySelector('.ag-cs-fm-title');
+    if (titleEl) titleEl.textContent = ui.fmBarTitle || 'Claude FM';
+
+    const srcBtn = bar.querySelector('.ag-cs-fm-source');
+    if (srcBtn) {
+      srcBtn.textContent = src === 'synth' ? 'Synth' : 'YT';
+      srcBtn.setAttribute('aria-label', `${ui.fmSourceSwitchLabel || 'Switch audio source'} (${src === 'synth' ? ui.optSourceSynth || 'Lo-Fi Synth' : 'YouTube'})`);
+      srcBtn.setAttribute('title', src === 'synth' ? ui.optSourceSynth || 'Lo-Fi Synth' : 'YouTube Live');
+    }
+
+    const muteBtn = bar.querySelector('.ag-cs-fm-mute');
+    if (muteBtn) {
+      const mLabel = fmState.muted ? ui.fmUnmuteLabel || 'Unmute' : ui.fmMuteLabel || 'Mute';
+      muteBtn.setAttribute('aria-label', mLabel);
+      muteBtn.setAttribute('title', mLabel);
+      const mIco = muteBtn.querySelector('.ag-cs-fm-mute-ico');
+      if (mIco) {
+        mIco.textContent = '';
+        mIco.appendChild(
+          makeFmIcon(
+            fmState.muted || fmState.volume === 0
+              ? 'M8.5 3.2L4.8 6H2.5v4h2.3l3.7 2.8V3.2zm2.8 3.2l2.1 2.1-2.1 2.1-.8-.8 1.3-1.3-1.3-1.3.8-.8z'
+              : 'M8.5 3.2L4.8 6H2.5v4h2.3l3.7 2.8V3.2zm3.1 2a4 4 0 010 5.6l-.8-.8a2.8 2.8 0 000-4l.8-.8z'
+          )
+        );
+      }
+    }
+
+    const volInput = bar.querySelector('.ag-cs-fm-vol');
+    if (volInput) {
+      volInput.setAttribute('aria-label', ui.fmVolumeLabel || 'Claude FM volume');
+      if (String(volInput.value) !== String(fmState.volume)) {
+        volInput.value = String(fmState.volume);
+      }
+    }
+
+    const motionBtn = bar.querySelector('.ag-cs-fm-motion');
+    if (motionBtn) {
+      const motLbl = fmState.userMotionPaused
+        ? ui.fmMotionResumeLabel || 'Resume live background animation'
+        : ui.fmMotionPauseLabel || 'Pause live background animation';
+      motionBtn.setAttribute('aria-label', motLbl);
+      motionBtn.setAttribute('title', motLbl);
+      const motIco = motionBtn.querySelector('.ag-cs-fm-motion-ico');
+      if (motIco) {
+        motIco.textContent = '';
+        motIco.appendChild(
+          makeFmIcon(
+            fmState.userMotionPaused
+              ? 'M5 3.5l7.5 4.5L5 12.5V3.5z'
+              : 'M4.5 4h2.4v8H4.5zm4.6 0h2.4v8H9.1z'
+          )
+        );
+      }
+    }
+
+    const ytLink = bar.querySelector('.ag-cs-fm-link');
+    if (ytLink) {
+      ytLink.setAttribute('aria-label', ui.fmOpenYoutubeLabel || 'Open Claude FM on YouTube');
+      ytLink.setAttribute('title', ui.fmOpenYoutubeLabel || 'Open Claude FM on YouTube');
+    }
+  }
+
+  function unmountClaudeFmBar() {
+    if (fmState.playing) {
+      fmState.playing = false;
+    }
+    teardownYtAudioDock();
+    if (fmState.synth) {
+      fmState.synth.dispose();
+      fmState.synth = null;
+    }
+    if (fmState.bar && typeof fmState.bar.remove === 'function') {
+      fmState.bar.remove();
+    }
+    fmState.bar = null;
+    if (claudeFmMount && typeof claudeFmMount.setAudioActive === 'function') {
+      claudeFmMount.setAudioActive(false);
+    }
+  }
+
+  function syncClaudeFmBar() {
+    if (cfg.claudeFmBar === false || !document.body) {
+      if (fmState.bar) unmountClaudeFmBar();
+      return;
+    }
+    fmState.volume = claudeFmCore ? claudeFmCore.clampVolume(cfg.claudeFmVolume) : fmState.volume;
+    if (fmState.bar && fmState.bar.isConnected) {
+      refreshClaudeFmBarLabels();
+      return;
+    }
+
+    const bar = document.createElement('div');
+    bar.className = 'ag-cs-fm-bar';
+    bar.setAttribute('role', 'group');
+    bar.setAttribute('aria-label', 'Claude FM');
+    bar.setAttribute('data-ag-no-i18n', '');
+
+    const playBtn = document.createElement('button');
+    playBtn.type = 'button';
+    playBtn.className = 'ag-cs-fm-btn ag-cs-fm-play';
+    const playIco = document.createElement('span');
+    playIco.className = 'ag-cs-fm-play-ico';
+    playIco.setAttribute('aria-hidden', 'true');
+    playBtn.appendChild(playIco);
+    playBtn.addEventListener('click', () => {
+      fmState.playing = !fmState.playing;
+      syncAudioPlayback();
+    });
+
+    const badge = document.createElement('span');
+    badge.className = 'ag-cs-fm-badge';
+    const dot = document.createElement('span');
+    dot.className = 'ag-cs-fm-dot';
+    dot.setAttribute('aria-hidden', 'true');
+    const titleSpan = document.createElement('span');
+    titleSpan.className = 'ag-cs-fm-title';
+    const eq = document.createElement('span');
+    eq.className = 'ag-cs-fm-eq';
+    eq.setAttribute('aria-hidden', 'true');
+    for (let i = 0; i < 4; i++) {
+      eq.appendChild(document.createElement('i'));
+    }
+    badge.appendChild(dot);
+    badge.appendChild(titleSpan);
+    badge.appendChild(eq);
+
+    const srcBtn = document.createElement('button');
+    srcBtn.type = 'button';
+    srcBtn.className = 'ag-cs-fm-btn ag-cs-fm-source';
+    srcBtn.addEventListener('click', () => {
+      fmState.fallbackActive = false;
+      const cur = claudeFmCore ? claudeFmCore.normalizeAudioSource(cfg.claudeFmSource) : 'youtube';
+      const next = cur === 'youtube' ? 'synth' : 'youtube';
+      saveSetting('claudeFmSource', next);
+      syncAudioPlayback();
+    });
+
+    const muteBtn = document.createElement('button');
+    muteBtn.type = 'button';
+    muteBtn.className = 'ag-cs-fm-btn ag-cs-fm-mute';
+    const muteIco = document.createElement('span');
+    muteIco.className = 'ag-cs-fm-mute-ico';
+    muteIco.setAttribute('aria-hidden', 'true');
+    muteBtn.appendChild(muteIco);
+    muteBtn.addEventListener('click', () => {
+      fmState.muted = !fmState.muted;
+      postYtAudioCmd(fmState.muted ? 'mute' : 'unMute');
+      if (fmState.synth) fmState.synth.setMuted(fmState.muted);
+      refreshClaudeFmBarLabels();
+    });
+
+    const volInput = document.createElement('input');
+    volInput.type = 'range';
+    volInput.min = '0';
+    volInput.max = '100';
+    volInput.value = String(fmState.volume);
+    volInput.className = 'ag-cs-fm-vol';
+    const handleVol = (persist) => {
+      const nextVol = claudeFmCore ? claudeFmCore.clampVolume(volInput.value) : Math.max(0, Math.min(100, Number(volInput.value) || 0));
+      fmState.volume = nextVol;
+      if (fmState.muted && nextVol > 0) {
+        fmState.muted = false;
+        postYtAudioCmd('unMute');
+        if (fmState.synth) fmState.synth.setMuted(false);
+      }
+      postYtAudioCmd('setVolume', [nextVol]);
+      if (fmState.synth) fmState.synth.setVolume(nextVol);
+      if (persist) saveSetting('claudeFmVolume', nextVol);
+      refreshClaudeFmBarLabels();
+    };
+    volInput.addEventListener('input', () => handleVol(false));
+    volInput.addEventListener('change', () => handleVol(true));
+
+    const motionBtn = document.createElement('button');
+    motionBtn.type = 'button';
+    motionBtn.className = 'ag-cs-fm-btn ag-cs-fm-motion';
+    const motIco = document.createElement('span');
+    motIco.className = 'ag-cs-fm-motion-ico';
+    motIco.setAttribute('aria-hidden', 'true');
+    motionBtn.appendChild(motIco);
+    motionBtn.addEventListener('click', () => {
+      fmState.userMotionPaused = !fmState.userMotionPaused;
+      if (claudeFmMount && typeof claudeFmMount.setMotionPaused === 'function') {
+        claudeFmMount.setMotionPaused(fmState.userMotionPaused);
+      }
+      refreshClaudeFmBarLabels();
+    });
+
+    const ytLink = document.createElement('a');
+    ytLink.className = 'ag-cs-fm-btn ag-cs-fm-link';
+    ytLink.href = claudeFmCore ? claudeFmCore.CLAUDE_FM_WATCH_URL : 'https://www.youtube.com/live/tRsQsTMvPNg';
+    ytLink.target = '_blank';
+    ytLink.rel = 'noopener noreferrer';
+    ytLink.appendChild(
+      makeFmIcon('M9.5 3h3.5v3.5h-1.2V5L7.6 9.2l-.8-.8L11 4.2H9.5V3zM4 4.5h4v1.2H5.2v6.1h6.1V9h1.2v4H4V4.5z')
+    );
+
+    bar.appendChild(playBtn);
+    bar.appendChild(badge);
+    bar.appendChild(srcBtn);
+    bar.appendChild(muteBtn);
+    bar.appendChild(volInput);
+    bar.appendChild(motionBtn);
+    bar.appendChild(ytLink);
+
+    document.body.appendChild(bar);
+    fmState.bar = bar;
+    refreshClaudeFmBarLabels();
   }
 
   // ── Composer Decorations, Token HUD Inspector, Effort Slider & Smooth Caret ─
@@ -2636,7 +3198,11 @@
       needsStep = true;
     }
     crabState.wasRunning = isRunning;
-    const nextLevel = mascotCore.levelFromActiveInfo(activeInfo);
+    const baseLevel = mascotCore.levelFromActiveInfo(activeInfo);
+    const nextLevel =
+      baseLevel.state === 'idle' && fmState.playing
+        ? { state: 'music', animation: 'music', priority: 2 }
+        : baseLevel;
     if (!crabState.stage.level || crabState.stage.level.state !== nextLevel.state) {
       crabState.stage.level = nextLevel;
       needsStep = true;
@@ -5080,6 +5646,35 @@
           [false, ui.offLabel || 'Off'],
         ],
       },
+      liveBackground: {
+        key: 'liveBackground',
+        title: ui.setLiveBgTitle || 'Claude FM Live Background',
+        desc: ui.setLiveBgDesc || 'Show the animated Claude FM ASCII landscape & walking Clawd, live YouTube video, or matrix ripple on home view.',
+        opts: [
+          ['claude-fm', ui.optBgClaudeFm || 'Claude FM'],
+          ['youtube', ui.optBgYouTube || 'YouTube Live'],
+          ['ripple', ui.optBgRipple || 'Ripple'],
+          ['off', ui.offLabel || 'Off'],
+        ],
+      },
+      claudeFmBar: {
+        key: 'claudeFmBar',
+        title: ui.setFmBarTitle || 'Top Bar Claude FM Player',
+        desc: ui.setFmBarDesc || 'Show compact Claude FM music controls in the top bar (YouTube Live stream or built-in Lo-Fi synth).',
+        opts: [
+          [true, ui.onLabel || 'On'],
+          [false, ui.offLabel || 'Off'],
+        ],
+      },
+      claudeFmSource: {
+        key: 'claudeFmSource',
+        title: ui.setFmSourceTitle || 'Claude FM Audio Source',
+        desc: ui.setFmSourceDesc || 'Choose between the live Claude FM YouTube stream or built-in offline Lo-Fi ambient synth.',
+        opts: [
+          ['youtube', ui.optSourceYouTube || 'YouTube'],
+          ['synth', ui.optSourceSynth || 'Lo-Fi Synth'],
+        ],
+      },
       inlineStats: {
         key: 'inlineStats',
         title: ui.setInlineStatsTitle || 'Inline Stats & Remaining Ring',
@@ -5163,7 +5758,7 @@
       {
         id: 'interaction',
         title: ui.grpInteraction || 'Slider, Caret & Mascot',
-        keys: ['effortSliderStyle', 'effortAccent', 'performanceBackdrop', 'smoothCaret', 'mascot', 'homeRipple'],
+        keys: ['effortSliderStyle', 'effortAccent', 'performanceBackdrop', 'smoothCaret', 'mascot', 'liveBackground', 'claudeFmBar', 'claudeFmSource', 'homeRipple'],
       },
       {
         id: 'telemetry',
@@ -5315,7 +5910,7 @@
     if (!el || !el.closest) return false;
     return Boolean(
       el.closest(
-        '.ag-cs-home-panel-seat, .ag-cs-ripple-host, .ag-cs-crab, .ag-cs-inline-stats, .ag-cs-context-ring, .ag-cs-ctx-popover, .ag-cs-effort-popover, .ag-cs-perf-backdrop, .ag-cs-smooth-caret, .ag-cs-turn-bar, .ag-cs-hud-top-bar, .ag-cs-hud-bottom-bar, .ag-cs-hud-footer-chip, #' +
+        '.ag-cs-home-panel-seat, .ag-cs-ripple-host, .ag-cs-claude-fm-host, .ag-cs-fm-bar, .ag-cs-fm-yt-dock, .ag-cs-crab, .ag-cs-inline-stats, .ag-cs-context-ring, .ag-cs-ctx-popover, .ag-cs-effort-popover, .ag-cs-perf-backdrop, .ag-cs-smooth-caret, .ag-cs-turn-bar, .ag-cs-hud-top-bar, .ag-cs-hud-bottom-bar, .ag-cs-hud-footer-chip, #' +
           SETTINGS_SEC_ID +
           ', #ag-claude-style-css'
       )
@@ -5338,7 +5933,9 @@
     } else {
       unmountPanelSeat();
     }
+    syncLiveBackground();
     syncRipple();
+    syncClaudeFmBar();
     syncComposers();
     ensureSettingsSection();
   }
@@ -5777,6 +6374,9 @@
         usageRecordsCount: usageRecords.size,
         hasPanel: Boolean(panelEl && panelEl.isConnected),
         hasRipple: Boolean(rippleMount && rippleMount.canvas.isConnected),
+        hasClaudeFmBg: Boolean(claudeFmMount && claudeFmMount.canvas.isConnected),
+        hasClaudeFmBar: Boolean(fmState.bar && fmState.bar.isConnected),
+        claudeFmPlaying: Boolean(fmState.playing),
         hasCrab: Boolean(crabState.root && crabState.root.isConnected),
         hasSmoothCaret: Boolean(document.querySelector('.ag-cs-smooth-caret')),
         hasEffortPopover: Boolean(openEffortPop && openEffortPop.isConnected),
@@ -5790,6 +6390,8 @@
         closeEffortPopover,
         teardownSmoothCarets,
         clearTurnBadges,
+        unmountLiveBackground,
+        unmountClaudeFmBar,
         unmountRipple,
         unmountPanelSeat,
         unmountCrab,
@@ -5816,7 +6418,7 @@
       });
       document
         .querySelectorAll(
-          '.ag-cs-inline-stats, .ag-cs-context-ring, .ag-cs-hud-top-bar, .ag-cs-hud-bottom-bar, .ag-cs-hud-rim-progress, .ag-cs-hud-footer-chip, .ag-cs-perf-backdrop, #' + SETTINGS_SEC_ID
+          '.ag-cs-inline-stats, .ag-cs-context-ring, .ag-cs-hud-top-bar, .ag-cs-hud-bottom-bar, .ag-cs-hud-rim-progress, .ag-cs-hud-footer-chip, .ag-cs-perf-backdrop, .ag-cs-claude-fm-host, .ag-cs-fm-bar, .ag-cs-fm-yt-dock, #' + SETTINGS_SEC_ID
         )
         .forEach((el) => el.remove());
       const html = document.documentElement;
@@ -5825,6 +6427,8 @@
           'data-ag-cs-style',
           'data-ag-cs-palette',
           'data-ag-cs-home',
+          'data-ag-cs-live-bg',
+          'data-ag-cs-fm-bar',
           'data-ag-cs-composer',
           'data-ag-cs-logo-ink',
           'data-ag-cs-sidebar',
