@@ -4935,7 +4935,24 @@ test('Claude FM live background, YouTube mode, top-bar music controls, mascot mu
     assert.ok(ytBg, 'YouTube live background iframe is mounted in youtube mode');
     assert.ok(ytBg.src.includes('tRsQsTMvPNg'));
 
-    // Switch to 'ripple' -> unmounts Claude FM background and mounts Ripple matrix
+    // Switching from home view to an active/existing conversation mounts Claude FM seamlessly on [data-testid="overview-panel-host"]
+    sandbox.window.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, language: 'en', liveBackground: 'claude-fm' });
+    assert.equal(sandbox.window.__agClaudeStyle.getState().claudeFmSurface, 'home');
+    home.remove();
+    const convHost = makeNode('div', { attrs: { 'data-testid': 'overview-panel-host' }, clientWidth: 1200, clientHeight: 800 });
+    const convView = makeNode('div', { attrs: { 'data-testid': 'conversation-view' }, clientWidth: 1200, clientHeight: 800 });
+    convHost.appendChild(convView);
+    body.appendChild(convHost);
+    sandbox.window.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, language: 'en', liveBackground: 'claude-fm' });
+    const chatBgHost = convHost.querySelector('.ag-cs-claude-fm-host');
+    assert.ok(chatBgHost, 'Claude FM background mounts in active conversation container when .agy-home unmounts');
+    assert.equal(chatBgHost.getAttribute('data-ag-cs-fm-surface'), 'chat');
+    assert.equal(sandbox.window.__agClaudeStyle.getState().hasClaudeFmBg, true);
+    assert.equal(sandbox.window.__agClaudeStyle.getState().claudeFmSurface, 'chat');
+
+    // Switch to 'ripple' -> unmounts Claude FM background and mounts Ripple matrix on home
+    convHost.remove();
+    body.appendChild(home);
     sandbox.window.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, language: 'en', liveBackground: 'ripple', homeRipple: true });
     assert.equal(home.querySelector('.ag-cs-claude-fm-host'), null);
     assert.ok(home.querySelector('.ag-cs-ripple-host'));

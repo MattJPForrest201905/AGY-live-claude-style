@@ -183,6 +183,47 @@ test('createClaudeFmScene renders all 5 distinct scenes, Clawd variants, auto cr
   reduced = true;
   assert.doesNotThrow(() => scene.start());
   assert.doesNotThrow(() => scene.dispose());
+
+  // OS prefers-reduced-motion must NOT freeze Claude FM animation when explicit reducedMotion option is omitted
+  const prevMatchMedia = globalThis.matchMedia;
+  const prevRaf = globalThis.requestAnimationFrame;
+  const prevCancel = globalThis.cancelAnimationFrame;
+  const prevPerf = globalThis.performance;
+  let rafCb = null;
+  let nowMs = 1000;
+  try {
+    globalThis.matchMedia = () => ({ matches: true });
+    globalThis.performance = { now: () => nowMs };
+    globalThis.requestAnimationFrame = (fn) => {
+      rafCb = fn;
+      return 77;
+    };
+    globalThis.cancelAnimationFrame = () => {
+      rafCb = null;
+    };
+    const liveScene = fmCore.createClaudeFmScene(createMockCanvas(createMockCtx()), {
+      palette: 'obsidian',
+      scene: 'valley',
+      isDark: true,
+    });
+    liveScene.resize(1280, 800, 1);
+    liveScene.start();
+    assert.equal(liveScene.isPaused(), false);
+    assert.equal(typeof liveScene.getElapsedSec, 'function');
+    assert.equal(liveScene.getElapsedSec(), 0);
+    assert.equal(typeof rafCb, 'function', 'schedules animation frame even when matchMedia prefers-reduced-motion matches');
+    nowMs = 1060;
+    const cb = rafCb;
+    rafCb = null;
+    cb(nowMs);
+    assert.ok(liveScene.getElapsedSec() > 0, 'elapsed time advances on animation tick');
+    liveScene.dispose();
+  } finally {
+    globalThis.matchMedia = prevMatchMedia;
+    globalThis.requestAnimationFrame = prevRaf;
+    globalThis.cancelAnimationFrame = prevCancel;
+    globalThis.performance = prevPerf;
+  }
 });
 
 test('createClaudeFmScene tolerates null 2D context gracefully', () => {

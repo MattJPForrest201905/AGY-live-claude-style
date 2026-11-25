@@ -434,8 +434,7 @@
     const ctx = canvas && typeof canvas.getContext === 'function' ? canvas.getContext('2d') : null;
 
     function isReducedMotion() {
-      if (typeof opts.reducedMotion === 'function') return Boolean(opts.reducedMotion());
-      return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      return typeof opts.reducedMotion === 'function' ? Boolean(opts.reducedMotion()) : false;
     }
 
     function resize(w, h, nextDpr) {
@@ -1332,6 +1331,7 @@
       setScene,
       getScene: () => sceneMode,
       getActiveSceneId: () => resolveSceneAtTime(sceneMode, elapsedSec).primary,
+      getElapsedSec: () => elapsedSec,
       setAudioActive,
       setFontFamily,
       dispose,

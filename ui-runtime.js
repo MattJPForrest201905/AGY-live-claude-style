@@ -1584,25 +1584,90 @@
     claudeFmMount = null;
   }
 
+  function resolveLiveBgHost() {
+    const home = document.querySelector('.agy-home');
+    if (home) return { el: home, surface: 'home' };
+    const conv = document.querySelector('[data-testid="conversation-view"]');
+    if (conv) {
+      const panelHost = typeof conv.closest === 'function' ? conv.closest('[data-testid="overview-panel-host"]') : null;
+      return { el: panelHost || conv, surface: 'chat' };
+    }
+    return null;
+  }
+
+  function insertLiveHostFirst(parent, host) {
+    if (!parent || !host) return false;
+    if (host.parentElement && typeof host.remove === 'function') {
+      host.remove();
+    }
+    if (typeof parent.insertBefore === 'function') {
+      parent.insertBefore(host, parent.firstChild || null);
+      return true;
+    }
+    if (typeof parent.prepend === 'function') {
+      parent.prepend(host);
+      return true;
+    }
+    if (typeof parent.appendChild === 'function') {
+      parent.appendChild(host);
+      return true;
+    }
+    return false;
+  }
+
   function syncLiveBackground() {
     const mode = resolveLiveBgMode();
     const activeMode = mode === 'claude-fm' || mode === 'youtube';
-    const home = activeMode && claudeFmCore ? document.querySelector('.agy-home') : null;
-    if (claudeFmMount && (claudeFmMount.root !== home || !claudeFmMount.canvas.isConnected)) {
+    const target = activeMode && claudeFmCore ? resolveLiveBgHost() : null;
+    if (claudeFmMount && target && claudeFmMount.root === target.el && !claudeFmMount.canvas.isConnected) {
       unmountLiveBackground();
     }
-    if (!home) return;
+    if (!target) {
+      if (claudeFmMount) unmountLiveBackground();
+      return;
+    }
+
+    if (claudeFmMount && claudeFmMount.root !== target.el) {
+      if (claudeFmMount.ro && typeof claudeFmMount.ro.disconnect === 'function') claudeFmMount.ro.disconnect();
+      if (claudeFmMount.root && typeof claudeFmMount.root.removeEventListener === 'function') {
+        claudeFmMount.root.removeEventListener('pointerdown', claudeFmMount.onPress);
+        claudeFmMount.root.removeEventListener('pointermove', claudeFmMount.onMove);
+      }
+      if (!insertLiveHostFirst(target.el, claudeFmMount.host)) {
+        unmountLiveBackground();
+        return;
+      }
+      claudeFmMount.root = target.el;
+      claudeFmMount.host.setAttribute('data-ag-cs-fm-surface', target.surface);
+      if (typeof target.el.addEventListener === 'function') {
+        target.el.addEventListener('pointerdown', claudeFmMount.onPress, { passive: true });
+        target.el.addEventListener('pointermove', claudeFmMount.onMove, { passive: true });
+      }
+      if (claudeFmMount.ro && typeof claudeFmMount.ro.observe === 'function') {
+        claudeFmMount.ro.observe(target.el);
+      } else if (typeof ResizeObserver === 'function') {
+        claudeFmMount.ro = new ResizeObserver(() => claudeFmMount.layout());
+        claudeFmMount.ro.observe(target.el);
+      }
+      claudeFmMount.width = -1;
+      claudeFmMount.height = -1;
+      claudeFmMount.layout();
+      if (!claudeFmMount.canvas.isConnected) {
+        unmountLiveBackground();
+      }
+    }
 
     if (!claudeFmMount) {
       const host = document.createElement('div');
       host.className = 'ag-cs-claude-fm-host';
+      host.setAttribute('data-ag-cs-fm-surface', target.surface);
       host.setAttribute('aria-hidden', 'true');
       host.setAttribute('data-ag-no-i18n', '');
       const canvas = document.createElement('canvas');
       canvas.className = 'ag-cs-claude-fm-canvas';
       canvas.setAttribute('aria-hidden', 'true');
       host.appendChild(canvas);
-      home.insertBefore(host, home.firstChild);
+      if (!insertLiveHostFirst(target.el, host)) return;
 
       const cs = typeof getComputedStyle === 'function' ? getComputedStyle(canvas) : null;
       const fontFamily = cs?.getPropertyValue?.('--font-mono')?.trim() || 'ui-monospace, Consolas, monospace';
@@ -1616,7 +1681,7 @@
       });
 
       const state = {
-        root: home,
+        root: target.el,
         host,
         canvas,
         video: null,
@@ -1627,6 +1692,7 @@
         onPress: null,
         onMove: null,
         onVis: null,
+        layout: null,
         refreshTheme: () => {
           scene.setPalette(cfg.palette || 'obsidian', isDarkTheme());
         },
@@ -1643,15 +1709,20 @@
       };
 
       const layout = () => {
-        const w = home.clientWidth || 0;
-        const h = home.clientHeight || 0;
+        const rect =
+          state.root && typeof state.root.getBoundingClientRect === 'function'
+            ? state.root.getBoundingClientRect()
+            : null;
+        const w = (state.root && state.root.clientWidth) || (rect ? Math.round(rect.width) : 0) || 0;
+        const h = (state.root && state.root.clientHeight) || (rect ? Math.round(rect.height) : 0) || 0;
         if (w === state.width && h === state.height) return;
         state.width = w;
         state.height = h;
         scene.resize(w, h, Math.min(window.devicePixelRatio || 1, 2));
-        if (!fmState.userMotionPaused && !document.hidden) scene.start();
+        if (!fmState.userMotionPaused && !document.hidden) scene.resume();
         else scene.renderFrame(0);
       };
+      state.layout = layout;
 
       state.onPress = (ev) => {
         if (ev.button !== 0) return;
@@ -1665,8 +1736,10 @@
         const ny = (((ev.clientY || 0) - rect.top) / Math.max(1, rect.height || state.height)) * 2 - 1;
         scene.setPointerOffset(nx, ny);
       };
-      home.addEventListener('pointerdown', state.onPress, { passive: true });
-      home.addEventListener('pointermove', state.onMove, { passive: true });
+      if (typeof target.el.addEventListener === 'function') {
+        target.el.addEventListener('pointerdown', state.onPress, { passive: true });
+        target.el.addEventListener('pointermove', state.onMove, { passive: true });
+      }
 
       state.onVis = () => {
         if (document.hidden) scene.pause();
@@ -1676,12 +1749,24 @@
 
       if (typeof ResizeObserver === 'function') {
         state.ro = new ResizeObserver(() => layout());
-        state.ro.observe(home);
+        state.ro.observe(target.el);
       }
       layout();
       claudeFmMount = state;
-    } else if (typeof claudeFmMount.setScene === 'function') {
-      claudeFmMount.setScene(cfg.claudeFmScene || 'auto');
+    } else {
+      claudeFmMount.host.setAttribute('data-ag-cs-fm-surface', target.surface);
+      if (typeof claudeFmMount.setScene === 'function') {
+        claudeFmMount.setScene(cfg.claudeFmScene || 'auto');
+      }
+      if (
+        !fmState.userMotionPaused &&
+        !document.hidden &&
+        claudeFmMount.scene &&
+        typeof claudeFmMount.scene.isPaused === 'function' &&
+        claudeFmMount.scene.isPaused()
+      ) {
+        claudeFmMount.scene.resume();
+      }
     }
 
     // Manage YouTube visual video layer when mode === 'youtube'
@@ -6464,6 +6549,11 @@
         hasPanel: Boolean(panelEl && panelEl.isConnected),
         hasRipple: Boolean(rippleMount && rippleMount.canvas.isConnected),
         hasClaudeFmBg: Boolean(claudeFmMount && claudeFmMount.canvas.isConnected),
+        claudeFmSurface: claudeFmMount && claudeFmMount.host ? claudeFmMount.host.getAttribute('data-ag-cs-fm-surface') : null,
+        claudeFmElapsedSec:
+          claudeFmMount && claudeFmMount.scene && typeof claudeFmMount.scene.getElapsedSec === 'function'
+            ? claudeFmMount.scene.getElapsedSec()
+            : 0,
         hasClaudeFmBar: Boolean(fmState.bar && fmState.bar.isConnected),
         claudeFmPlaying: Boolean(fmState.playing),
         claudeFmScene: claudeFmCore ? claudeFmCore.normalizeScene(cfg.claudeFmScene) : 'auto',
