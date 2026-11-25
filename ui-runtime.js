@@ -1411,6 +1411,7 @@
     ytFrame: null,
     ytReady: false,
     ytFallbackTimer: 0,
+    ytHandshakeTimer: 0,
     synth: null,
     onMsg: null,
   };
@@ -1448,7 +1449,34 @@
     }
   }
 
+  function clearYtHandshakeTimer() {
+    if (fmState.ytHandshakeTimer) {
+      clearInterval(fmState.ytHandshakeTimer);
+      fmState.ytHandshakeTimer = 0;
+    }
+  }
+
+  function postYtListeningHandshake() {
+    if (!fmState.ytFrame || !fmState.ytFrame.contentWindow || !claudeFmCore) return;
+    try {
+      fmState.ytFrame.contentWindow.postMessage(claudeFmCore.buildYouTubeListeningMessage(1), '*');
+    } catch {}
+  }
+
+  function startYtHandshakeLoop() {
+    if (fmState.ytReady || !fmState.ytFrame || fmState.ytHandshakeTimer) return;
+    postYtListeningHandshake();
+    fmState.ytHandshakeTimer = setInterval(() => {
+      if (destroyed || fmState.ytReady || !fmState.playing || !fmState.ytFrame || !fmState.ytFrame.isConnected) {
+        clearYtHandshakeTimer();
+        return;
+      }
+      postYtListeningHandshake();
+    }, 350);
+  }
+
   function teardownYtAudioDock() {
+    clearYtHandshakeTimer();
     clearYtFallbackTimer();
     if (fmState.onMsg && typeof window.removeEventListener === 'function') {
       try {
@@ -1461,6 +1489,20 @@
     }
     fmState.ytFrame = null;
     fmState.ytReady = false;
+  }
+
+  function activateSynthFallback() {
+    clearYtHandshakeTimer();
+    clearYtFallbackTimer();
+    teardownYtAudioDock();
+    fmState.fallbackActive = true;
+    const s = ensureFmSynth();
+    if (s) {
+      s.setVolume(fmState.volume);
+      s.setMuted(fmState.muted);
+      s.play();
+    }
+    refreshClaudeFmBarLabels();
   }
 
   function postYtAudioCmd(func, args = []) {
@@ -1497,21 +1539,42 @@
             return;
           }
         }
-        if (payload && (payload.event === 'onReady' || payload.event === 'infoDelivery' || payload.event === 'initialDelivery')) {
+        if (payload && payload.event === 'onError') {
+          const wantedSrc = claudeFmCore ? claudeFmCore.normalizeAudioSource(cfg.claudeFmSource) : 'youtube';
+          if (!destroyed && fmState.playing && wantedSrc === 'youtube') {
+            activateSynthFallback();
+          }
+          return;
+        }
+        if (
+          payload &&
+          (payload.event === 'onReady' ||
+            payload.event === 'infoDelivery' ||
+            payload.event === 'initialDelivery' ||
+            payload.event === 'alreadyInitialized')
+        ) {
+          const wasReady = fmState.ytReady;
           fmState.ytReady = true;
+          clearYtHandshakeTimer();
           clearYtFallbackTimer();
-          postYtAudioCmd('setVolume', [fmState.volume]);
-          postYtAudioCmd(fmState.muted ? 'mute' : 'unMute');
-          postYtAudioCmd(fmState.playing ? 'playVideo' : 'pauseVideo');
+          if (!wasReady || payload.event === 'onReady') {
+            postYtAudioCmd('setVolume', [fmState.volume]);
+            postYtAudioCmd(fmState.muted ? 'mute' : 'unMute');
+            postYtAudioCmd(fmState.playing ? 'playVideo' : 'pauseVideo');
+          }
         }
       };
       window.addEventListener('message', fmState.onMsg);
     }
     iframe.addEventListener('load', () => {
-      postYtAudioCmd('listening');
-      postYtAudioCmd('setVolume', [fmState.volume]);
-      postYtAudioCmd(fmState.muted ? 'mute' : 'unMute');
-      if (fmState.playing) postYtAudioCmd('playVideo');
+      postYtListeningHandshake();
+      if (fmState.ytReady) {
+        postYtAudioCmd('setVolume', [fmState.volume]);
+        postYtAudioCmd(fmState.muted ? 'mute' : 'unMute');
+        if (fmState.playing) postYtAudioCmd('playVideo');
+      } else if (fmState.playing) {
+        startYtHandshakeLoop();
+      }
     });
     document.body.appendChild(iframe);
     fmState.ytFrame = iframe;
@@ -1521,10 +1584,12 @@
   function syncAudioPlayback() {
     const wantedSrc = claudeFmCore ? claudeFmCore.normalizeAudioSource(cfg.claudeFmSource) : 'youtube';
     if (!fmState.playing) {
+      clearYtHandshakeTimer();
       clearYtFallbackTimer();
       postYtAudioCmd('pauseVideo');
       if (fmState.synth) fmState.synth.pause();
     } else if (wantedSrc === 'synth' || fmState.fallbackActive) {
+      clearYtHandshakeTimer();
       clearYtFallbackTimer();
       postYtAudioCmd('pauseVideo');
       const s = ensureFmSynth();
@@ -1537,27 +1602,22 @@
       if (fmState.synth) fmState.synth.pause();
       const frame = ensureYtAudioDock();
       if (frame) {
-        postYtAudioCmd('setVolume', [fmState.volume]);
-        postYtAudioCmd(fmState.muted ? 'mute' : 'unMute');
-        postYtAudioCmd('playVideo');
-        if (!fmState.ytReady && !fmState.ytFallbackTimer) {
-          fmState.ytFallbackTimer = setTimeout(() => {
-            fmState.ytFallbackTimer = 0;
-            if (destroyed || !fmState.playing || fmState.ytReady) return;
-            fmState.fallbackActive = true;
-            const s = ensureFmSynth();
-            if (s) {
-              s.setVolume(fmState.volume);
-              s.setMuted(fmState.muted);
-              s.play();
-            }
-            refreshClaudeFmBarLabels();
-          }, 5000);
+        if (fmState.ytReady) {
+          postYtAudioCmd('setVolume', [fmState.volume]);
+          postYtAudioCmd(fmState.muted ? 'mute' : 'unMute');
+          postYtAudioCmd('playVideo');
+        } else {
+          startYtHandshakeLoop();
+          if (!fmState.ytFallbackTimer) {
+            fmState.ytFallbackTimer = setTimeout(() => {
+              fmState.ytFallbackTimer = 0;
+              if (destroyed || !fmState.playing || fmState.ytReady) return;
+              activateSynthFallback();
+            }, 12000);
+          }
         }
       } else {
-        fmState.fallbackActive = true;
-        const s = ensureFmSynth();
-        if (s) s.play();
+        activateSynthFallback();
       }
     }
     if (claudeFmMount && typeof claudeFmMount.setAudioActive === 'function') {
@@ -2020,8 +2080,8 @@
     srcBtn.type = 'button';
     srcBtn.className = 'ag-cs-fm-btn ag-cs-fm-source';
     srcBtn.addEventListener('click', () => {
+      const cur = getActiveAudioSource();
       fmState.fallbackActive = false;
-      const cur = claudeFmCore ? claudeFmCore.normalizeAudioSource(cfg.claudeFmSource) : 'youtube';
       const next = cur === 'youtube' ? 'synth' : 'youtube';
       fmState.lastSyncedSource = next;
       saveSetting('claudeFmSource', next);
@@ -6565,6 +6625,8 @@
             : 0,
         hasClaudeFmBar: Boolean(fmState.bar && fmState.bar.isConnected),
         claudeFmPlaying: Boolean(fmState.playing),
+        claudeFmSource: getActiveAudioSource(),
+        claudeFmYtReady: Boolean(fmState.ytReady),
         claudeFmScene: claudeFmCore ? claudeFmCore.normalizeScene(cfg.claudeFmScene) : 'auto',
         hasCrab: Boolean(crabState.root && crabState.root.isConnected),
         hasSmoothCaret: Boolean(document.querySelector('.ag-cs-smooth-caret')),

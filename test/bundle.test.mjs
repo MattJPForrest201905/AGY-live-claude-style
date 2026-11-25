@@ -4658,7 +4658,9 @@ test('inject expression enters sidecar-lite mode on plugin://swarm-- iframe with
   assert.equal(sandbox.globalThis.__agCsSidecarCore, undefined);
 });
 
-test('Claude FM live background, YouTube mode, top-bar music controls, mascot music mood, and teardown work seamlessly', async () => {
+function createClaudeFmTestEnv(options = {}) {
+  const postedIframeMessages = [];
+  const windowListeners = new Map();
   function makeNode(tag, opts = {}) {
     const attrs = new Map(Object.entries(opts.attrs || {}));
     const listeners = new Map();
@@ -4668,6 +4670,18 @@ test('Claude FM live background, YouTube mode, top-bar music controls, mascot mu
       tagName: tag.toUpperCase(),
       id: opts.id || '',
       value: opts.value || '',
+      contentWindow:
+        tag.toUpperCase() === 'IFRAME'
+          ? {
+              postMessage(raw, origin) {
+                let msg = raw;
+                try {
+                  msg = JSON.parse(raw);
+                } catch {}
+                postedIframeMessages.push({ msg, origin });
+              },
+            }
+          : undefined,
       style: {
         _props: {},
         setProperty(k, v) { this._props[k] = String(v); },
@@ -4840,6 +4854,7 @@ test('Claude FM live background, YouTube mode, top-bar music controls, mascot mu
 
   const bindingCalls = [];
   const timers = new Set();
+  const intervals = new Map();
   const sandbox = {
     window: null,
     globalThis: null,
@@ -4851,18 +4866,59 @@ test('Claude FM live background, YouTube mode, top-bar music controls, mascot mu
     matchMedia: () => ({ matches: false }),
     MutationObserver: class { observe() {} disconnect() {} },
     ResizeObserver: class { observe() {} disconnect() {} },
+    addEventListener(ev, cb) {
+      if (!windowListeners.has(ev)) windowListeners.set(ev, []);
+      windowListeners.get(ev).push(cb);
+    },
+    removeEventListener(ev, cb) {
+      const arr = windowListeners.get(ev);
+      if (!arr) return;
+      const idx = arr.indexOf(cb);
+      if (idx >= 0) arr.splice(idx, 1);
+    },
     requestAnimationFrame: (fn) => { const id = setTimeout(() => fn(Date.now()), 5); timers.add(id); return id; },
     cancelAnimationFrame: (id) => { timers.delete(id); clearTimeout(id); },
     setTimeout: (fn, ms) => { const id = setTimeout(fn, ms); timers.add(id); return id; },
     clearTimeout: (id) => { timers.delete(id); clearTimeout(id); },
-    setInterval: () => 1,
-    clearInterval: () => {},
+    setInterval: options.trackIntervals
+      ? (fn, ms) => { const id = setInterval(fn, ms); intervals.set(id, ms); return id; }
+      : () => 1,
+    clearInterval: options.trackIntervals
+      ? (id) => { intervals.delete(id); clearInterval(id); }
+      : () => {},
     performance: { now: () => Date.now() },
     [cdp.SETTING_BINDING]: (payload) => bindingCalls.push(JSON.parse(payload)),
     Math, Date, JSON, Map, Set, Array, Object, String, Number, Boolean, Promise, Uint8Array, Float32Array, Intl,
   };
   sandbox.window = sandbox;
   sandbox.globalThis = sandbox;
+
+  return {
+    makeNode,
+    html,
+    head,
+    body,
+    home,
+    card,
+    doc,
+    bindingCalls,
+    timers,
+    intervals,
+    postedIframeMessages,
+    sandbox,
+    dispatchWindowEvent(ev, payload = {}) {
+      const list = windowListeners.get(ev) || [];
+      for (const fn of [...list]) fn({ type: ev, ...payload });
+    },
+    cleanup() {
+      for (const id of timers) clearTimeout(id);
+      for (const id of intervals.keys()) clearInterval(id);
+    },
+  };
+}
+
+test('Claude FM live background, YouTube mode, top-bar music controls, mascot music mood, and teardown work seamlessly', async () => {
+  const { makeNode, html, body, home, card, bindingCalls, timers, sandbox } = createClaudeFmTestEnv();
 
   try {
     const res = vm.runInNewContext(
@@ -5019,5 +5075,88 @@ test('Claude FM live background, YouTube mode, top-bar music controls, mascot mu
     vm.runInNewContext(cdp.REMOVE_EXPRESSION, webSandbox);
   } finally {
     for (const id of timers) clearTimeout(id);
+  }
+});
+
+test('Claude FM YouTube listening handshake stays on YT and falls back cleanly on onError', () => {
+  const env = createClaudeFmTestEnv({ trackIntervals: true });
+  const { body, bindingCalls, postedIframeMessages, intervals, sandbox, dispatchWindowEvent, cleanup } = env;
+  try {
+    const res = vm.runInNewContext(
+      cdp.buildInjectExpression({ ...cdp.DEFAULT_CONFIG, language: 'en', palette: 'claude', claudeFmSource: 'youtube' }),
+      sandbox
+    );
+    assert.equal(res.status, 'ok');
+
+    const bar = body.querySelector('.ag-cs-fm-bar');
+    const playBtn = bar.querySelector('.ag-cs-fm-play');
+    const srcBtn = bar.querySelector('.ag-cs-fm-source');
+    assert.equal(bar.getAttribute('data-source'), 'youtube');
+    assert.equal(sandbox.window.__agClaudeStyle.getState().claudeFmSource, 'youtube');
+    assert.equal(sandbox.window.__agClaudeStyle.getState().claudeFmYtReady, false);
+
+    // Play with YouTube source mounts dock and uses {"event":"listening","id":1,"channel":"widget"}
+    playBtn.dispatch('click');
+    const dock = body.querySelector('.ag-cs-fm-yt-dock');
+    assert.ok(dock, 'YouTube dock iframe should mount when pressing Play');
+    assert.equal(Array.from(intervals.values()).filter((ms) => ms === 350).length, 1, 'handshake retry timer starts while awaiting initialDelivery');
+    dock.dispatch('load');
+
+    assert.equal(
+      postedIframeMessages.some(
+        (m) => m.msg && m.msg.event === 'listening' && m.msg.id === 1 && m.msg.channel === 'widget'
+      ),
+      true,
+      'must send YouTube IFrame API listening handshake'
+    );
+    assert.equal(
+      postedIframeMessages.some((m) => m.msg && m.msg.event === 'command' && m.msg.func === 'listening'),
+      false,
+      'must never send listening wrapped as an event:command call'
+    );
+
+    // Receiving initialDelivery marks YT ready and configures volume/mute/playback once
+    dispatchWindowEvent('message', {
+      origin: 'https://www.youtube-nocookie.com',
+      data: JSON.stringify({ event: 'initialDelivery', info: {} }),
+    });
+    assert.equal(sandbox.window.__agClaudeStyle.getState().claudeFmYtReady, true);
+    assert.equal(bar.getAttribute('data-source'), 'youtube');
+    assert.equal(sandbox.window.__agClaudeStyle.getState().claudeFmSource, 'youtube');
+    assert.equal(Array.from(intervals.values()).filter((ms) => ms === 350).length, 0, 'handshake loop must stop after initialDelivery');
+
+    const playCallsAfterReady = postedIframeMessages.filter((m) => m.msg.func === 'playVideo').length;
+    const volCallsAfterReady = postedIframeMessages.filter((m) => m.msg.func === 'setVolume').length;
+    assert.equal(playCallsAfterReady, 1);
+    assert.equal(volCallsAfterReady, 1);
+
+    // Subsequent periodic infoDelivery ticks must not spam playVideo/setVolume
+    dispatchWindowEvent('message', {
+      origin: 'https://www.youtube-nocookie.com',
+      data: JSON.stringify({ event: 'infoDelivery', info: { currentTime: 2 } }),
+    });
+    assert.equal(postedIframeMessages.filter((m) => m.msg.func === 'playVideo').length, playCallsAfterReady);
+    assert.equal(postedIframeMessages.filter((m) => m.msg.func === 'setVolume').length, volCallsAfterReady);
+
+    // YouTube onError activates Synth fallback, tears down dock, and lets clicking source switch back to YT
+    dispatchWindowEvent('message', {
+      origin: 'https://www.youtube-nocookie.com',
+      data: JSON.stringify({ event: 'onError', info: 150 }),
+    });
+    assert.equal(bar.getAttribute('data-source'), 'synth');
+    assert.equal(sandbox.window.__agClaudeStyle.getState().claudeFmSource, 'synth');
+    assert.equal(sandbox.window.__agClaudeStyle.getState().claudeFmYtReady, false);
+    assert.equal(body.querySelector('.ag-cs-fm-yt-dock'), null, 'fallback must tear down YouTube dock');
+
+    bindingCalls.length = 0;
+    srcBtn.dispatch('click');
+    assert.equal(bindingCalls.some((c) => c.key === 'claudeFmSource' && c.value === 'youtube'), true);
+    assert.equal(bar.getAttribute('data-source'), 'youtube');
+    assert.equal(sandbox.window.__agClaudeStyle.getState().claudeFmSource, 'youtube');
+    assert.ok(body.querySelector('.ag-cs-fm-yt-dock'), 'toggling back to YouTube remounts the dock');
+
+    vm.runInNewContext(cdp.REMOVE_EXPRESSION, sandbox);
+  } finally {
+    cleanup();
   }
 });

@@ -94,6 +94,9 @@ test('normalization helpers, scene resolution, and YouTube URL/command builders 
 
   const cmd = JSON.parse(fmCore.buildYouTubeCommand('setVolume', [42]));
   assert.deepEqual(cmd, { event: 'command', func: 'setVolume', args: [42] });
+
+  const listening = JSON.parse(fmCore.buildYouTubeListeningMessage());
+  assert.deepEqual(listening, { event: 'listening', id: 1, channel: 'widget' });
 });
 
 test('resolveClaudeFmPalette provides authentic parchment light and obsidian/claude dark palettes', () => {

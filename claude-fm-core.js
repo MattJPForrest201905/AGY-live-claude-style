@@ -91,6 +91,15 @@
     });
   }
 
+  function buildYouTubeListeningMessage(id = 1) {
+    const numericId = Number(id);
+    return JSON.stringify({
+      event: 'listening',
+      id: Number.isFinite(numericId) ? numericId : 1,
+      channel: 'widget',
+    });
+  }
+
   function resolveClaudeFmPalette(paletteName, isDark) {
     const dark = Boolean(isDark);
     if (!dark) {
@@ -1535,6 +1544,7 @@
     clampVolume,
     buildYouTubeEmbedUrl,
     buildYouTubeCommand,
+    buildYouTubeListeningMessage,
     resolveClaudeFmPalette,
     createClaudeFmScene,
     createAmbientSynthEngine,
