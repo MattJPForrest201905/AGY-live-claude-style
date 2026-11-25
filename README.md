@@ -50,7 +50,7 @@
 
 ### 🌌 1. Studio 首页、Claude FM 动态风景与字符波纹海
 - **保留原生特征与主题配色**：首页顶部保留 Antigravity 原生拱形 Logo（支持 `accent` / `foreground` 配色切换），与问候语水平对齐；提供 `obsidian`（黑曜石蓝暗色）、`claude` 与 `host`（跟随宿主）三套调色板，自动适配深色与浅色主题 🎨。
-- **Claude FM 动态风景 & 顶栏电台 (`liveBackground` / `claudeFmBar`)**：默认复刻 [Claude FM](https://www.youtube.com/live/tRsQsTMvPNg) 直播同款 ASCII 云海山谷与行走像素小旅人 Clawd（随音频播放戴上耳机并飘起音符 `♪ ♫`），亦可一键切换为 **YouTube 直播原画面** 或经典 **字符矩阵波纹 (`homeRipple`)**；窗口顶栏常驻轻量 **Claude FM 音乐控制条**，支持播放直播电台或零依赖离线 Lo-Fi 合成器、音量调节与动态背景暂停 🎧。
+- **Claude FM 多场景动态风景 & 顶栏电台 (`liveBackground` / `claudeFmScene` / `claudeFmBar`)**：内置 **5 套全屏动态 ASCII + 像素艺术场景**（`valley` 薄雾山谷、`rainy-city` 雨夜都市撑伞、`alpine-stars` 星空雪峰提灯、`ocean-lighthouse` 海岸灯塔、`sakura-trail` 樱花神社），默认 `auto` 每 45 秒柔和交叉淡入轮换，亦可切换 **YouTube 直播原画面** 或经典 **字符矩阵波纹 (`homeRipple`)**；窗口顶栏常驻轻量 **Claude FM 音乐控制条**，支持播放直播电台或离线 Lo-Fi 合成器、一键切场景与音频联动耳机特效 🎧。
 - **实时字符矩阵波纹场 (`homeRipple`)**：切换 `liveBackground: 'ripple'` 可在首页铺设等宽字母数字二维波动网格，带云雾漂移氛围效果；轻点空白处就像把小石子丢进字符星空，触发柔和的阻尼水波纹扩散动画 `~(˘▾˘~)`。
 - **编程用量仪表盘 (`概览` / `模型` · `全部` / `30 天` / `7 天`)**：自动聚合本地对话轨迹并剔除子代理重复会话计数，展示 6 项核心指标（会话数、消息数、Token 总量、活跃天数、高峰时段、最常用模型）、`26×7` 周日历热力图、30d/7d 模型堆叠柱状图，以及**60+ 本经典著作 Token 折算标尺**——悄悄告诉你今天写的代码相当于读了几本《爱丽丝漫游奇境》或《哈利·波特》📖✨。
 
@@ -81,7 +81,7 @@
 
 ### 🌐 6. 5 语言全局切换 & 设置面板原生集成
 - **5 语言全局本地化 (`language`)**：支持 **简体中文 (`zh-CN`) / 繁體中文 (`zh-TW`) / 粵語 (`yue`) / English (`en`) / 日本語 (`ja`)** 实时切换，作用于整个 Antigravity 主界面、Plan / Orchestrator 编排模式、插件面板以及 **Swarm 蜂群侧栏 (`plugin://swarm--` OOPIF)**；自动跳过代码编辑器、终端、对话/帖子正文与 `data-ag-no-i18n` 保护区，移除插件时无损还原。
-- **原生设置集成**：在 Antigravity `设置 → 外观` 底部自动注入 3 组共 23 项可视化开关，修改通过 CDP `Runtime.addBinding` 以轻量热更新即时生效，并经字段校验后原子写入 `config.json` 持久化。
+- **原生设置集成**：在 Antigravity `设置 → 外观` 底部自动注入 3 组共 24 项可视化开关，修改通过 CDP `Runtime.addBinding` 以轻量热更新即时生效，并经字段校验后原子写入 `config.json` 持久化。
 
 ---
 
@@ -287,7 +287,8 @@ AGY Claude Style 提供两种运行模式。**默认推荐「托管启动模式�
 | `palette` | `'obsidian'` \| `'claude'` \| `'host'` | `'obsidian'` | 🎨 配色方案（黑曜石蓝暗色 / Claude / 跟随宿主） |
 | `homeLayout` | `'studio'` \| `'classic'` \| `'off'` | `'studio'` | 🏠 新会话首页布局模式 |
 | `liveBackground` | `'claude-fm'` \| `'youtube'` \| `'ripple'` \| `'off'` | `'claude-fm'` | 📻 首页动态背景模式（Claude FM ASCII 旅人风景 / YouTube 直播原画面 / 字符波纹 / 关闭） |
-| `claudeFmBar` | `boolean` | `true` | 🎵 顶部栏 Claude FM 音乐控制条（播放/暂停、音源切换、静音、音量与动画暂停） |
+| `claudeFmScene` | `'auto'` \| `'valley'` \| `'rainy-city'` \| `'alpine-stars'` \| `'ocean-lighthouse'` \| `'sakura-trail'` | `'auto'` | 🏞️ Claude FM 风景场景（45 秒自动轮换 5 个场景或固定单个场景） |
+| `claudeFmBar` | `boolean` | `true` | 🎵 顶部栏 Claude FM 音乐控制条（播放/暂停、场景切换、音源切换、静音与音量） |
 | `claudeFmSource` | `'youtube'` \| `'synth'` | `'youtube'` | 🎧 Claude FM 音频来源（YouTube 官方直播流或内置零依赖 Lo-Fi 合成器） |
 | `claudeFmVolume` | `integer`（`0`–`100`） | `55` | 🔊 Claude FM 音乐播放器默认音量百分比 |
 | `homeRipple` | `boolean` | `true` | 🌊 当 `liveBackground` 为 `'ripple'` 时启用交互式字符矩阵波纹背景 |

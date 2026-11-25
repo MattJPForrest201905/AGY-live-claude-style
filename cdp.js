@@ -28,6 +28,7 @@ const DEFAULT_CONFIG = {
   homeLayout: 'studio',
   homeRipple: true,
   liveBackground: 'claude-fm',
+  claudeFmScene: 'auto',
   claudeFmBar: true,
   claudeFmSource: 'youtube',
   claudeFmVolume: 55,
@@ -61,6 +62,7 @@ const CONFIG_VALIDATORS = {
   homeLayout: ['studio', 'classic', 'off'],
   homeRipple: 'boolean',
   liveBackground: ['claude-fm', 'youtube', 'ripple', 'off'],
+  claudeFmScene: ['auto', 'valley', 'rainy-city', 'alpine-stars', 'ocean-lighthouse', 'sakura-trail'],
   claudeFmBar: 'boolean',
   claudeFmSource: ['youtube', 'synth'],
   composerRestyle: 'boolean',
@@ -416,6 +418,7 @@ const REMOVE_EXPRESSION = `(() => {
     root.removeAttribute('data-ag-cs-effort-accent');
     root.removeAttribute('data-ag-cs-perf-backdrop');
     root.removeAttribute('data-ag-cs-live-bg');
+    root.removeAttribute('data-ag-cs-fm-scene');
     root.removeAttribute('data-ag-cs-fm-bar');
     root.removeAttribute('data-ag-cs-lang');
     root.removeAttribute('data-ag-cs-cjk');

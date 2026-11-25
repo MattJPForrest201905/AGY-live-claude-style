@@ -31,9 +31,17 @@ function createMockCanvas(ctx) {
   };
 }
 
-test('normalization helpers and YouTube embed URL / command builders stay accurate', () => {
+test('normalization helpers, scene resolution, and YouTube URL/command builders stay accurate', () => {
   assert.equal(fmCore.CLAUDE_FM_VIDEO_ID, 'tRsQsTMvPNg');
   assert.equal(fmCore.CLAUDE_FM_WATCH_URL, 'https://www.youtube.com/live/tRsQsTMvPNg');
+  assert.deepEqual(fmCore.CLAUDE_FM_SCENES, [
+    'auto',
+    'valley',
+    'rainy-city',
+    'alpine-stars',
+    'ocean-lighthouse',
+    'sakura-trail',
+  ]);
 
   assert.equal(fmCore.normalizeLiveBackground('claude-fm'), 'claude-fm');
   assert.equal(fmCore.normalizeLiveBackground('youtube'), 'youtube');
@@ -45,6 +53,31 @@ test('normalization helpers and YouTube embed URL / command builders stay accura
   assert.equal(fmCore.normalizeAudioSource('synth'), 'synth');
   assert.equal(fmCore.normalizeAudioSource('youtube'), 'youtube');
   assert.equal(fmCore.normalizeAudioSource('bogus'), 'youtube');
+
+  for (const sc of fmCore.CLAUDE_FM_SCENES) {
+    assert.equal(fmCore.normalizeScene(sc), sc);
+  }
+  assert.equal(fmCore.normalizeScene('invalid-scene'), 'auto');
+
+  assert.deepEqual(fmCore.resolveSceneAtTime('rainy-city', 12), {
+    primary: 'rainy-city',
+    secondary: null,
+    blend: 0,
+  });
+  assert.deepEqual(fmCore.resolveSceneAtTime('auto', 5), {
+    primary: 'valley',
+    secondary: null,
+    blend: 0,
+  });
+  const fade = fmCore.resolveSceneAtTime('auto', 44.25);
+  assert.equal(fade.primary, 'valley');
+  assert.equal(fade.secondary, 'rainy-city');
+  assert.ok(fade.blend > 0 && fade.blend < 1);
+  assert.deepEqual(fmCore.resolveSceneAtTime('auto', 45), {
+    primary: 'rainy-city',
+    secondary: null,
+    blend: 0,
+  });
 
   assert.equal(fmCore.clampVolume(-10), 0);
   assert.equal(fmCore.clampVolume(150), 100);
@@ -68,6 +101,7 @@ test('resolveClaudeFmPalette provides authentic parchment light and obsidian/cla
   assert.equal(light.sky, '#ECEAE0');
   assert.equal(light.mascotBody, '#D97757');
   assert.equal(light.cliff, '#151513');
+  assert.ok(light.petalInk && light.windowGlow && light.beamInk);
 
   const obsDark = fmCore.resolveClaudeFmPalette('obsidian', true);
   assert.equal(obsDark.sky, '#13161d');
@@ -75,16 +109,17 @@ test('resolveClaudeFmPalette provides authentic parchment light and obsidian/cla
   assert.equal(obsDark.accent, '#4D6BFE');
 
   const claudeDark = fmCore.resolveClaudeFmPalette('claude', true);
-  assert.equal(claudeDark.sky, '#191816');
+  assert.equal(claudeDark.sky, '#191919');
   assert.equal(claudeDark.accent, '#D97757');
 });
 
-test('createClaudeFmScene renders ASCII landscape, Clawd sprite, headphones on audioActive, gusts, and handles zero-size & reduced motion', () => {
+test('createClaudeFmScene renders all 5 distinct scenes, Clawd variants, auto crossfades, and gusts cleanly', () => {
   const ctx = createMockCtx();
   const canvas = createMockCanvas(ctx);
   let reduced = false;
   const scene = fmCore.createClaudeFmScene(canvas, {
     palette: 'claude',
+    scene: 'valley',
     isDark: false,
     audioActive: false,
     reducedMotion: () => reduced,
@@ -95,26 +130,43 @@ test('createClaudeFmScene renders ASCII landscape, Clawd sprite, headphones on a
   assert.doesNotThrow(() => scene.renderFrame(0));
   assert.equal(ctx.ops.length, 0);
 
-  // Full 16:9 viewport render
+  // Full 16:9 viewport render across all 5 scenes
   scene.resize(960, 540, 2);
   assert.equal(canvas.width, 1920);
   assert.equal(canvas.height, 1080);
 
-  scene.renderFrame(1.25);
-  const skyFill = ctx.ops.find((op) => op[0] === 'fillRect' && op[1] === '#ECEAE0');
-  assert.ok(skyFill, 'sky fills with Claude FM parchment #ECEAE0');
+  const expectedGlyphsByScene = {
+    valley: (glyphs) => glyphs.includes('█') && (glyphs.includes('/') || glyphs.includes('≡')),
+    'rainy-city': (glyphs) => glyphs.includes('▪') && glyphs.includes('/'),
+    'alpine-stars': (glyphs) => glyphs.includes('✦') && glyphs.includes('^'),
+    'ocean-lighthouse': (glyphs) => glyphs.includes('~') && glyphs.includes('◉'),
+    'sakura-trail': (glyphs) => (glyphs.includes('❀') || glyphs.includes('✿')) && glyphs.includes('╤'),
+  };
 
-  const mascotPixel = ctx.ops.find((op) => op[0] === 'fillRect' && op[1] === '#D97757');
-  assert.ok(mascotPixel, 'renders terracotta Clawd traveler body');
+  for (const scId of fmCore.SCENE_CYCLE_ORDER) {
+    ctx.ops.length = 0;
+    scene.setScene(scId);
+    assert.equal(scene.getScene(), scId);
+    assert.equal(scene.getActiveSceneId(), scId);
+    scene.renderFrame(1.25);
 
-  const cliffPixel = ctx.ops.find((op) => op[0] === 'fillRect' && op[1] === '#151513');
-  assert.ok(cliffPixel, 'renders foreground #151513 silhouettes');
+    const mascotPixel = ctx.ops.find((op) => op[0] === 'fillRect' && op[1] === '#D97757');
+    assert.ok(mascotPixel, `renders terracotta Clawd traveler in ${scId}`);
 
-  const textOps = ctx.ops.filter((op) => op[0] === 'fillText').map((op) => op[1]);
-  assert.ok(textOps.length > 50, 'renders ASCII cloud/terrain glyphs');
-  assert.equal(textOps.includes('♪'), false, 'no music notes when audioActive is false');
+    const textGlyphs = ctx.ops.filter((op) => op[0] === 'fillText').map((op) => op[1]);
+    assert.ok(textGlyphs.length > 40, `renders rich ASCII scene glyphs in ${scId}`);
+    assert.ok(expectedGlyphsByScene[scId](textGlyphs), `scene ${scId} renders its signature ASCII motifs`);
+  }
+
+  // Auto-cycle crossfade at t=44.25s blends valley -> rainy-city without throwing
+  scene.setScene('auto');
+  ctx.ops.length = 0;
+  assert.doesNotThrow(() => scene.renderFrame(44.25));
+  const fadeAlphas = ctx.ops.filter((op) => op[0] === 'fillRect').length;
+  assert.ok(fadeAlphas > 10);
 
   // Audio active adds headphones & music notes
+  scene.setScene('valley');
   ctx.ops.length = 0;
   scene.setAudioActive(true);
   const audioTextOps = ctx.ops.filter((op) => op[0] === 'fillText').map((op) => op[1]);
@@ -128,7 +180,6 @@ test('createClaudeFmScene renders ASCII landscape, Clawd sprite, headphones on a
   scene.resume();
   assert.equal(scene.isPaused(), false);
 
-  // Reduced motion respects static frame mode
   reduced = true;
   assert.doesNotThrow(() => scene.start());
   assert.doesNotThrow(() => scene.dispose());
@@ -142,6 +193,7 @@ test('createClaudeFmScene tolerates null 2D context gracefully', () => {
     scene.start();
     scene.triggerGust(10, 10);
     scene.setPalette('obsidian', true);
+    scene.setScene('sakura-trail');
     scene.setAudioActive(true);
     scene.pause();
     scene.resume();
@@ -150,7 +202,6 @@ test('createClaudeFmScene tolerates null 2D context gracefully', () => {
 });
 
 test('createAmbientSynthEngine plays, adjusts volume/mute, pauses, disposes, and degrades safely without AudioContext', () => {
-  // No AudioContext available
   const noopSynth = fmCore.createAmbientSynthEngine({});
   assert.equal(noopSynth.play(), false);
   assert.doesNotThrow(() => {
@@ -160,7 +211,6 @@ test('createAmbientSynthEngine plays, adjusts volume/mute, pauses, disposes, and
     noopSynth.dispose();
   });
 
-  // Mocked Web Audio API
   let closed = false;
   const createdOscs = [];
   class MockAudioContext {

@@ -205,6 +205,7 @@
     html.setAttribute('data-ag-cs-palette', palette);
     html.setAttribute('data-ag-cs-home', cfg.homeLayout === 'classic' ? 'classic' : cfg.homeLayout === 'off' ? 'off' : 'studio');
     html.setAttribute('data-ag-cs-live-bg', resolveLiveBgMode());
+    html.setAttribute('data-ag-cs-fm-scene', claudeFmCore ? claudeFmCore.normalizeScene(cfg.claudeFmScene) : 'auto');
     html.setAttribute('data-ag-cs-fm-bar', cfg.claudeFmBar === false ? 'off' : 'on');
     html.setAttribute('data-ag-cs-composer', cfg.composerRestyle === false ? 'off' : 'on');
     html.setAttribute('data-ag-cs-logo-ink', cfg.logoInk === 'foreground' ? 'foreground' : 'accent');
@@ -1402,6 +1403,8 @@
     playing: false,
     muted: false,
     volume: claudeFmCore ? claudeFmCore.clampVolume(cfg.claudeFmVolume) : 55,
+    lastSyncedSource: claudeFmCore ? claudeFmCore.normalizeAudioSource(cfg.claudeFmSource) : 'youtube',
+    lastSyncedVolume: claudeFmCore ? claudeFmCore.clampVolume(cfg.claudeFmVolume) : 55,
     userMotionPaused: false,
     fallbackActive: false,
     bar: null,
@@ -1411,6 +1414,18 @@
     synth: null,
     onMsg: null,
   };
+
+  function resolveSceneLabel(sceneId, ui = uiText()) {
+    const map = {
+      auto: ui.optSceneAuto || 'Auto',
+      valley: ui.optSceneValley || 'Valley',
+      'rainy-city': ui.optSceneRainyCity || 'Rainy City',
+      'alpine-stars': ui.optSceneAlpineStars || 'Alpine',
+      'ocean-lighthouse': ui.optSceneOcean || 'Lighthouse',
+      'sakura-trail': ui.optSceneSakura || 'Sakura',
+    };
+    return map[sceneId] || map.auto;
+  }
 
   function getActiveAudioSource() {
     if (fmState.fallbackActive) return 'synth';
@@ -1593,6 +1608,7 @@
       const fontFamily = cs?.getPropertyValue?.('--font-mono')?.trim() || 'ui-monospace, Consolas, monospace';
       const scene = claudeFmCore.createClaudeFmScene(canvas, {
         palette: cfg.palette || 'obsidian',
+        scene: cfg.claudeFmScene || 'auto',
         isDark: isDarkTheme(),
         audioActive: fmState.playing,
         paused: fmState.userMotionPaused || document.hidden,
@@ -1613,6 +1629,9 @@
         onVis: null,
         refreshTheme: () => {
           scene.setPalette(cfg.palette || 'obsidian', isDarkTheme());
+        },
+        setScene: (nextScene) => {
+          scene.setScene(nextScene);
         },
         setAudioActive: (playing) => {
           scene.setAudioActive(playing);
@@ -1661,6 +1680,8 @@
       }
       layout();
       claudeFmMount = state;
+    } else if (typeof claudeFmMount.setScene === 'function') {
+      claudeFmMount.setScene(cfg.claudeFmScene || 'auto');
     }
 
     // Manage YouTube visual video layer when mode === 'youtube'
@@ -1704,35 +1725,50 @@
     return svg;
   }
 
+  function setFmIcon(host, key, svgPath) {
+    if (!host) return;
+    if (host.getAttribute('data-ico-key') === key && host.firstChild) return;
+    host.setAttribute('data-ico-key', key);
+    host.textContent = '';
+    host.appendChild(makeFmIcon(svgPath));
+  }
+
   function refreshClaudeFmBarLabels() {
     const bar = fmState.bar;
     if (!bar || !bar.isConnected) return;
     const ui = uiText();
     const src = getActiveAudioSource();
+    const sceneId = claudeFmCore ? claudeFmCore.normalizeScene(cfg.claudeFmScene) : 'auto';
     bar.setAttribute('data-playing', fmState.playing ? '1' : '0');
     bar.setAttribute('data-muted', fmState.muted ? '1' : '0');
     bar.setAttribute('data-motion-paused', fmState.userMotionPaused ? '1' : '0');
     bar.setAttribute('data-source', src);
+    bar.setAttribute('data-scene', sceneId);
 
     const playBtn = bar.querySelector('.ag-cs-fm-play');
     if (playBtn) {
       playBtn.setAttribute('aria-label', fmState.playing ? ui.fmPauseLabel || 'Pause Claude FM' : ui.fmPlayLabel || 'Play Claude FM');
       playBtn.setAttribute('title', fmState.playing ? ui.fmPauseLabel || 'Pause Claude FM' : ui.fmPlayLabel || 'Play Claude FM');
       const iconHost = playBtn.querySelector('.ag-cs-fm-play-ico');
-      if (iconHost) {
-        iconHost.textContent = '';
-        iconHost.appendChild(
-          makeFmIcon(
-            fmState.playing
-              ? 'M4.5 3.5h2.2v9H4.5zm4.8 0h2.2v9H9.3z'
-              : 'M4.5 3.2l8 4.8-8 4.8V3.2z'
-          )
-        );
-      }
+      setFmIcon(
+        iconHost,
+        fmState.playing ? 'pause' : 'play',
+        fmState.playing
+          ? 'M4.5 3.5h2.2v9H4.5zm4.8 0h2.2v9H9.3z'
+          : 'M4.5 3.2l8 4.8-8 4.8V3.2z'
+      );
     }
 
     const titleEl = bar.querySelector('.ag-cs-fm-title');
     if (titleEl) titleEl.textContent = ui.fmBarTitle || 'Claude FM';
+
+    const sceneBtn = bar.querySelector('.ag-cs-fm-scene');
+    if (sceneBtn) {
+      const sceneLbl = resolveSceneLabel(sceneId, ui);
+      sceneBtn.textContent = sceneLbl;
+      sceneBtn.setAttribute('aria-label', `${ui.fmSceneSwitchLabel || 'Switch live scene'}: ${sceneLbl}`);
+      sceneBtn.setAttribute('title', `${ui.fmSceneSwitchLabel || 'Switch live scene'} (${sceneLbl})`);
+    }
 
     const srcBtn = bar.querySelector('.ag-cs-fm-source');
     if (srcBtn) {
@@ -1747,16 +1783,14 @@
       muteBtn.setAttribute('aria-label', mLabel);
       muteBtn.setAttribute('title', mLabel);
       const mIco = muteBtn.querySelector('.ag-cs-fm-mute-ico');
-      if (mIco) {
-        mIco.textContent = '';
-        mIco.appendChild(
-          makeFmIcon(
-            fmState.muted || fmState.volume === 0
-              ? 'M8.5 3.2L4.8 6H2.5v4h2.3l3.7 2.8V3.2zm2.8 3.2l2.1 2.1-2.1 2.1-.8-.8 1.3-1.3-1.3-1.3.8-.8z'
-              : 'M8.5 3.2L4.8 6H2.5v4h2.3l3.7 2.8V3.2zm3.1 2a4 4 0 010 5.6l-.8-.8a2.8 2.8 0 000-4l.8-.8z'
-          )
-        );
-      }
+      const isMutedOrZero = fmState.muted || fmState.volume === 0;
+      setFmIcon(
+        mIco,
+        isMutedOrZero ? 'muted' : 'vol',
+        isMutedOrZero
+          ? 'M8.5 3.2L4.8 6H2.5v4h2.3l3.7 2.8V3.2zm2.8 3.2l2.1 2.1-2.1 2.1-.8-.8 1.3-1.3-1.3-1.3.8-.8z'
+          : 'M8.5 3.2L4.8 6H2.5v4h2.3l3.7 2.8V3.2zm3.1 2a4 4 0 010 5.6l-.8-.8a2.8 2.8 0 000-4l.8-.8z'
+      );
     }
 
     const volInput = bar.querySelector('.ag-cs-fm-vol');
@@ -1775,16 +1809,13 @@
       motionBtn.setAttribute('aria-label', motLbl);
       motionBtn.setAttribute('title', motLbl);
       const motIco = motionBtn.querySelector('.ag-cs-fm-motion-ico');
-      if (motIco) {
-        motIco.textContent = '';
-        motIco.appendChild(
-          makeFmIcon(
-            fmState.userMotionPaused
-              ? 'M5 3.5l7.5 4.5L5 12.5V3.5z'
-              : 'M4.5 4h2.4v8H4.5zm4.6 0h2.4v8H9.1z'
-          )
-        );
-      }
+      setFmIcon(
+        motIco,
+        fmState.userMotionPaused ? 'anim-paused' : 'anim-live',
+        fmState.userMotionPaused
+          ? 'M2.5 2.5l11 11-.9.9-2.8-2.8L8 13.5 6.6 9.4 2.5 8l3.1-1-3.1-3.1.9-.9zM8 2.5l1.4 4.1L13.5 8l-2.3.8-4.1-4.1L8 2.5z'
+          : 'M8 1.5l1.5 4.2 4.5 1.3-4.5 1.3L8 12.5 6.5 8.3 2 7l4.5-1.3L8 1.5zm4.4 8.4l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7.7-1.8z'
+      );
     }
 
     const ytLink = bar.querySelector('.ag-cs-fm-link');
@@ -1817,7 +1848,21 @@
       if (fmState.bar) unmountClaudeFmBar();
       return;
     }
-    fmState.volume = claudeFmCore ? claudeFmCore.clampVolume(cfg.claudeFmVolume) : fmState.volume;
+    const nextCfgVol = claudeFmCore ? claudeFmCore.clampVolume(cfg.claudeFmVolume) : fmState.volume;
+    const nextCfgSrc = claudeFmCore ? claudeFmCore.normalizeAudioSource(cfg.claudeFmSource) : 'youtube';
+    const volChanged = nextCfgVol !== fmState.lastSyncedVolume;
+    const srcChanged = nextCfgSrc !== fmState.lastSyncedSource;
+    if (volChanged) {
+      fmState.volume = nextCfgVol;
+      fmState.lastSyncedVolume = nextCfgVol;
+      postYtAudioCmd('setVolume', [nextCfgVol]);
+      if (fmState.synth) fmState.synth.setVolume(nextCfgVol);
+    }
+    if (srcChanged) {
+      fmState.lastSyncedSource = nextCfgSrc;
+      fmState.fallbackActive = false;
+      if (fmState.playing) syncAudioPlayback();
+    }
     if (fmState.bar && fmState.bar.isConnected) {
       const titleHost = document.querySelector('[data-testid="title-menu-bar"]');
       if (titleHost && fmState.bar.parentElement !== titleHost) {
@@ -1863,6 +1908,20 @@
     badge.appendChild(titleSpan);
     badge.appendChild(eq);
 
+    const sceneBtn = document.createElement('button');
+    sceneBtn.type = 'button';
+    sceneBtn.className = 'ag-cs-fm-btn ag-cs-fm-scene';
+    sceneBtn.addEventListener('click', () => {
+      const list = claudeFmCore?.CLAUDE_FM_SCENES || ['auto', 'valley', 'rainy-city', 'alpine-stars', 'ocean-lighthouse', 'sakura-trail'];
+      const cur = claudeFmCore ? claudeFmCore.normalizeScene(cfg.claudeFmScene) : 'auto';
+      const next = list[(list.indexOf(cur) + 1) % list.length];
+      saveSetting('claudeFmScene', next);
+      if (claudeFmMount && typeof claudeFmMount.setScene === 'function') {
+        claudeFmMount.setScene(next);
+      }
+      refreshClaudeFmBarLabels();
+    });
+
     const srcBtn = document.createElement('button');
     srcBtn.type = 'button';
     srcBtn.className = 'ag-cs-fm-btn ag-cs-fm-source';
@@ -1870,6 +1929,7 @@
       fmState.fallbackActive = false;
       const cur = claudeFmCore ? claudeFmCore.normalizeAudioSource(cfg.claudeFmSource) : 'youtube';
       const next = cur === 'youtube' ? 'synth' : 'youtube';
+      fmState.lastSyncedSource = next;
       saveSetting('claudeFmSource', next);
       syncAudioPlayback();
     });
@@ -1904,7 +1964,10 @@
       }
       postYtAudioCmd('setVolume', [nextVol]);
       if (fmState.synth) fmState.synth.setVolume(nextVol);
-      if (persist) saveSetting('claudeFmVolume', nextVol);
+      if (persist) {
+        fmState.lastSyncedVolume = nextVol;
+        saveSetting('claudeFmVolume', nextVol);
+      }
       refreshClaudeFmBarLabels();
     };
     volInput.addEventListener('input', () => handleVol(false));
@@ -1936,6 +1999,7 @@
 
     bar.appendChild(playBtn);
     bar.appendChild(badge);
+    bar.appendChild(sceneBtn);
     bar.appendChild(srcBtn);
     bar.appendChild(muteBtn);
     bar.appendChild(volInput);
@@ -5669,6 +5733,19 @@
           ['off', ui.offLabel || 'Off'],
         ],
       },
+      claudeFmScene: {
+        key: 'claudeFmScene',
+        title: ui.setFmSceneTitle || 'Claude FM Scene',
+        desc: ui.setFmSceneDesc || 'Auto-cycle all 5 animated ASCII scenes or pin Misty Valley, Rainy City, Starry Alpine, Lighthouse, or Sakura Trail.',
+        opts: [
+          ['auto', ui.optSceneAuto || 'Auto'],
+          ['valley', ui.optSceneValley || 'Valley'],
+          ['rainy-city', ui.optSceneRainyCity || 'Rainy City'],
+          ['alpine-stars', ui.optSceneAlpineStars || 'Alpine'],
+          ['ocean-lighthouse', ui.optSceneOcean || 'Lighthouse'],
+          ['sakura-trail', ui.optSceneSakura || 'Sakura'],
+        ],
+      },
       claudeFmBar: {
         key: 'claudeFmBar',
         title: ui.setFmBarTitle || 'Top Bar Claude FM Player',
@@ -5770,7 +5847,7 @@
       {
         id: 'interaction',
         title: ui.grpInteraction || 'Slider, Caret & Mascot',
-        keys: ['effortSliderStyle', 'effortAccent', 'performanceBackdrop', 'smoothCaret', 'mascot', 'liveBackground', 'claudeFmBar', 'claudeFmSource', 'homeRipple'],
+        keys: ['effortSliderStyle', 'effortAccent', 'performanceBackdrop', 'smoothCaret', 'mascot', 'liveBackground', 'claudeFmScene', 'claudeFmBar', 'claudeFmSource', 'homeRipple'],
       },
       {
         id: 'telemetry',
@@ -6389,6 +6466,7 @@
         hasClaudeFmBg: Boolean(claudeFmMount && claudeFmMount.canvas.isConnected),
         hasClaudeFmBar: Boolean(fmState.bar && fmState.bar.isConnected),
         claudeFmPlaying: Boolean(fmState.playing),
+        claudeFmScene: claudeFmCore ? claudeFmCore.normalizeScene(cfg.claudeFmScene) : 'auto',
         hasCrab: Boolean(crabState.root && crabState.root.isConnected),
         hasSmoothCaret: Boolean(document.querySelector('.ag-cs-smooth-caret')),
         hasEffortPopover: Boolean(openEffortPop && openEffortPop.isConnected),
@@ -6440,6 +6518,7 @@
           'data-ag-cs-palette',
           'data-ag-cs-home',
           'data-ag-cs-live-bg',
+          'data-ag-cs-fm-scene',
           'data-ag-cs-fm-bar',
           'data-ag-cs-composer',
           'data-ag-cs-logo-ink',

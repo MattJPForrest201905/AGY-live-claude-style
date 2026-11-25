@@ -444,7 +444,7 @@ test('inject expression mounts and REMOVE_EXPRESSION cleanly tears down on simul
     const settingKeys = new Set(
       appearancePanel.querySelectorAll('#ag-cs-settings-sec button').map((b) => b.getAttribute('data-ag-cs-key'))
     );
-    assert.equal(settingKeys.size, 23);
+    assert.equal(settingKeys.size, 24);
     for (const expectedKey of [
       'language',
       'homeLayout',
@@ -458,6 +458,7 @@ test('inject expression mounts and REMOVE_EXPRESSION cleanly tears down on simul
       'smoothCaret',
       'mascot',
       'liveBackground',
+      'claudeFmScene',
       'claudeFmBar',
       'claudeFmSource',
       'homeRipple',
@@ -580,6 +581,7 @@ test('inject expression mounts and REMOVE_EXPRESSION cleanly tears down on simul
     assert.equal(html.hasAttribute('data-ag-cs-effort-accent'), false);
     assert.equal(html.hasAttribute('data-ag-cs-perf-backdrop'), false);
     assert.equal(html.hasAttribute('data-ag-cs-live-bg'), false);
+    assert.equal(html.hasAttribute('data-ag-cs-fm-scene'), false);
     assert.equal(html.hasAttribute('data-ag-cs-fm-bar'), false);
     assert.equal(html.hasAttribute('data-ag-cs-lang'), false);
     assert.equal(html.hasAttribute('data-ag-cs-cjk'), false);
@@ -4878,12 +4880,15 @@ test('Claude FM live background, YouTube mode, top-bar music controls, mascot mu
     const playBtn = bar.querySelector('.ag-cs-fm-play');
     const muteBtn = bar.querySelector('.ag-cs-fm-mute');
     const motionBtn = bar.querySelector('.ag-cs-fm-motion');
+    const sceneBtn = bar.querySelector('.ag-cs-fm-scene');
     const srcBtn = bar.querySelector('.ag-cs-fm-source');
     const ytLink = bar.querySelector('.ag-cs-fm-link');
 
     assert.equal(playBtn.hasAttribute('aria-pressed'), false, 'WCAG: play button toggles aria-label without aria-pressed');
     assert.equal(playBtn.getAttribute('aria-label'), 'Play Claude FM');
     assert.equal(ytLink.href || ytLink.getAttribute('href'), 'https://www.youtube.com/live/tRsQsTMvPNg');
+    assert.equal(html.getAttribute('data-ag-cs-fm-scene'), 'auto');
+    assert.equal(sceneBtn.textContent, 'Auto');
 
     // Start playback -> top bar reflects playing, and idle Clawd switches to music mood
     playBtn.dispatch('click');
@@ -4894,6 +4899,20 @@ test('Claude FM live background, YouTube mode, top-bar music controls, mascot mu
     const crab = card.querySelector('.ag-cs-crab');
     assert.equal(crab?.getAttribute('data-animation'), 'music');
 
+    // Idempotent SVG icon guard: refreshing config when playing state is unchanged must not replace SVG DOM node
+    const playIconRef = playBtn.querySelector('.ag-cs-fm-play-ico')?.firstChild;
+    sandbox.window.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, language: 'en', palette: 'claude', claudeFmSource: 'synth' });
+    assert.equal(playBtn.querySelector('.ag-cs-fm-play-ico')?.firstChild, playIconRef);
+
+    // Cycle scene button -> updates scene attribute, label, and emits CDP binding
+    sceneBtn.dispatch('click');
+    assert.equal(html.getAttribute('data-ag-cs-fm-scene'), 'valley');
+    assert.equal(sceneBtn.textContent, 'Valley');
+    assert.equal(bindingCalls.some((c) => c.key === 'claudeFmScene' && c.value === 'valley'), true);
+    sceneBtn.dispatch('click');
+    assert.equal(html.getAttribute('data-ag-cs-fm-scene'), 'rainy-city');
+    assert.equal(sceneBtn.textContent, 'Rainy City');
+
     // Toggle mute & motion pause
     muteBtn.dispatch('click');
     assert.equal(bar.getAttribute('data-muted'), '1');
@@ -4901,9 +4920,14 @@ test('Claude FM live background, YouTube mode, top-bar music controls, mascot mu
     assert.equal(bar.getAttribute('data-motion-paused'), '1');
     assert.equal(motionBtn.getAttribute('aria-label'), 'Resume live background animation');
 
-    // Switch audio source -> persists setting via CDP binding
+    // Switch audio source -> persists setting via CDP binding, then external refreshConfig updates source & volume live
     srcBtn.dispatch('click');
     assert.equal(bindingCalls.some((c) => c.key === 'claudeFmSource' && c.value === 'youtube'), true);
+    sandbox.window.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, language: 'en', palette: 'claude', claudeFmSource: 'youtube' });
+    assert.equal(bar.getAttribute('data-source'), 'youtube');
+    sandbox.window.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, language: 'en', palette: 'claude', claudeFmSource: 'synth', claudeFmVolume: 40 });
+    assert.equal(bar.getAttribute('data-source'), 'synth');
+    assert.equal(bar.querySelector('.ag-cs-fm-vol')?.value, '40');
 
     // Switch liveBackground to 'youtube' -> mounts full-bleed muted YouTube live video iframe + canvas underlay
     sandbox.window.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, language: 'en', liveBackground: 'youtube' });
@@ -4926,6 +4950,7 @@ test('Claude FM live background, YouTube mode, top-bar music controls, mascot mu
     assert.equal(body.querySelector('.ag-cs-fm-bar'), null);
     assert.equal(body.querySelector('.ag-cs-fm-yt-dock'), null);
     assert.equal(home.querySelector('.ag-cs-claude-fm-host'), null);
+    assert.equal(html.hasAttribute('data-ag-cs-fm-scene'), false);
     assert.equal(sandbox.globalThis.__agCsClaudeFmCore, undefined);
   } finally {
     for (const id of timers) clearTimeout(id);

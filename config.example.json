@@ -4,6 +4,7 @@
   "homeLayout": "studio",
   "homeRipple": true,
   "liveBackground": "claude-fm",
+  "claudeFmScene": "auto",
   "claudeFmBar": true,
   "claudeFmSource": "youtube",
   "claudeFmVolume": 55,
