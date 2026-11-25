@@ -22,7 +22,7 @@
 </div>
 
 > [!NOTE]
-> **来源声明**：本项目灵感及部分源码来源于 [Nwflower/dsh-claude-style](https://github.com/Nwflower/dsh-claude-style)；Codex 思考强度滑杆样式来源于 [Microqian2th/dsh-codex-effort-slider](https://github.com/Microqian2th/dsh-codex-effort-slider)；梁武峰思考强度滑杆样式来源于 [mobius/dsh-performance-slider](https://github.com/mobius/dsh-performance-slider)。详见 [来源声明](#来源声明)。
+> **来源声明**：本分支版在 [0DNANCY/agy-claude-style](https://github.com/0DNANCY/agy-claude-style) 基础上新增 Claude FM 五场景动态背景与顶栏播放器；上游项目灵感及部分源码来源于 [Nwflower/dsh-claude-style](https://github.com/Nwflower/dsh-claude-style)；Codex 思考强度滑杆样式来源于 [Microqian2th/dsh-codex-effort-slider](https://github.com/Microqian2th/dsh-codex-effort-slider)；梁武峰思考强度滑杆样式来源于 [mobius/dsh-performance-slider](https://github.com/mobius/dsh-performance-slider)。详见 [来源声明](#来源声明)。
 
 ---
 
@@ -416,6 +416,7 @@ npm run remove
 
 本项目在设计与实现过程中参考并使用了以下开源项目的灵感、样式及部分源码，特此声明并致谢 🌸：
 
+- **上游 Fork 基础仓库（AGY Claude Style 原版）**：[https://github.com/0DNANCY/agy-claude-style](https://github.com/0DNANCY/agy-claude-style)
 - **项目灵感来源及部分源码来源**：[https://github.com/Nwflower/dsh-claude-style](https://github.com/Nwflower/dsh-claude-style)
 - **Codex 思考强度滑杆样式**：[https://github.com/Microqian2th/dsh-codex-effort-slider](https://github.com/Microqian2th/dsh-codex-effort-slider)
 - **梁武峰思考强度滑杆样式**：[https://github.com/mobius/dsh-performance-slider](https://github.com/mobius/dsh-performance-slider)

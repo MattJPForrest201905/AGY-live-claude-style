@@ -490,34 +490,76 @@ namespace AgyClaudeStyle
             return cfg;
         }
 
+        private static bool TryExtractIntRange(object value, int minVal, int maxVal, out int parsed)
+        {
+            parsed = 0;
+            if (value is int)
+            {
+                int iv = (int)value;
+                if (iv < minVal || iv > maxVal) return false;
+                parsed = iv;
+                return true;
+            }
+            if (value is long)
+            {
+                long lv = (long)value;
+                if (lv < minVal || lv > maxVal) return false;
+                parsed = (int)lv;
+                return true;
+            }
+            if (value is double)
+            {
+                double dv = (double)value;
+                if (double.IsNaN(dv) || double.IsInfinity(dv) || Math.Floor(dv) != dv) return false;
+                if (dv < minVal || dv > maxVal) return false;
+                parsed = (int)dv;
+                return true;
+            }
+            return false;
+        }
+
         public static bool UpdateConfigSetting(string baseDir, PluginManifest manifest, string key, object value)
         {
-            object rule;
-            if (!manifest.Validators.TryGetValue(key, out rule)) return false;
-            string ruleStr = rule as string;
-            if (ruleStr == "boolean")
+            int intVal;
+            if (string.Equals(key, "claudeFmVolume", StringComparison.Ordinal))
             {
-                if (!(value is bool)) return false;
+                if (!TryExtractIntRange(value, 0, 100, out intVal)) return false;
+                value = intVal;
             }
-            else if (rule is List<object>)
+            else if (string.Equals(key, "pollIntervalMs", StringComparison.Ordinal))
             {
-                string strVal = value as string;
-                if (strVal == null) return false;
-                List<object> allowed = (List<object>)rule;
-                bool matched = false;
-                for (int i = 0; i < allowed.Count; i++)
-                {
-                    if (string.Equals(allowed[i] as string, strVal, StringComparison.Ordinal))
-                    {
-                        matched = true;
-                        break;
-                    }
-                }
-                if (!matched) return false;
+                if (!TryExtractIntRange(value, 250, 60000, out intVal)) return false;
+                value = intVal;
             }
             else
             {
-                return false;
+                object rule;
+                if (!manifest.Validators.TryGetValue(key, out rule)) return false;
+                string ruleStr = rule as string;
+                if (ruleStr == "boolean")
+                {
+                    if (!(value is bool)) return false;
+                }
+                else if (rule is List<object>)
+                {
+                    string strVal = value as string;
+                    if (strVal == null) return false;
+                    List<object> allowed = (List<object>)rule;
+                    bool matched = false;
+                    for (int i = 0; i < allowed.Count; i++)
+                    {
+                        if (string.Equals(allowed[i] as string, strVal, StringComparison.Ordinal))
+                        {
+                            matched = true;
+                            break;
+                        }
+                    }
+                    if (!matched) return false;
+                }
+                else
+                {
+                    return false;
+                }
             }
 
             Dictionary<string, object> next = ReadConfig(baseDir, manifest);

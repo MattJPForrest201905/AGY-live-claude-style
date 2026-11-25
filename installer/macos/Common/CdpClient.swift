@@ -455,19 +455,28 @@ enum CdpHelper {
     }
 
     static func updateConfigSetting(baseDir: String, manifest: PluginManifest, key: String, value: JsonValue) -> Bool {
-        guard let rule = manifest.validators[key] else { return false }
-        if let ruleStr = rule.stringValue, ruleStr == "boolean" {
-            guard case .bool = value else { return false }
-        } else if let allowed = rule.arrayValue {
-            guard let strVal = value.stringValue else { return false }
-            let matched = allowed.contains { $0.stringValue == strVal }
-            if !matched { return false }
+        var normalizedValue = value
+        if key == "claudeFmVolume" {
+            guard let n = value.intValue, n >= 0, n <= 100 else { return false }
+            normalizedValue = .int(Int64(n))
+        } else if key == "pollIntervalMs" {
+            guard let n = value.intValue, n >= 250, n <= 60000 else { return false }
+            normalizedValue = .int(Int64(n))
         } else {
-            return false
+            guard let rule = manifest.validators[key] else { return false }
+            if let ruleStr = rule.stringValue, ruleStr == "boolean" {
+                guard case .bool = value else { return false }
+            } else if let allowed = rule.arrayValue {
+                guard let strVal = value.stringValue else { return false }
+                let matched = allowed.contains { $0.stringValue == strVal }
+                if !matched { return false }
+            } else {
+                return false
+            }
         }
 
         var next = readConfig(baseDir: baseDir, manifest: manifest)
-        next[key] = value
+        next[key] = normalizedValue
         let cfgPath = (baseDir as NSString).appendingPathComponent("config.json")
         let tmpPath = cfgPath + ".tmp"
         let content = MiniJson.stringify(.object(next), pretty: true) + "\n"
