@@ -62,7 +62,7 @@ const CONFIG_VALIDATORS = {
   homeLayout: ['studio', 'classic', 'off'],
   homeRipple: 'boolean',
   liveBackground: ['claude-fm', 'youtube', 'ripple', 'off'],
-  claudeFmScene: ['auto', 'valley', 'rainy-city', 'alpine-stars', 'ocean-lighthouse', 'sakura-trail'],
+  claudeFmScene: ['auto', 'valley', 'rainy-city', 'alpine-stars', 'ocean-lighthouse', 'sakura-trail', 'midnight-train', 'desert-dunes', 'cyber-harbor', 'lantern-forest'],
   claudeFmBar: 'boolean',
   claudeFmSource: ['youtube', 'synth'],
   composerRestyle: 'boolean',

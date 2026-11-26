@@ -1424,6 +1424,10 @@
       'alpine-stars': ui.optSceneAlpineStars || 'Alpine',
       'ocean-lighthouse': ui.optSceneOcean || 'Lighthouse',
       'sakura-trail': ui.optSceneSakura || 'Sakura',
+      'midnight-train': ui.optSceneMidnightTrain || 'Night Train',
+      'desert-dunes': ui.optSceneDesertDunes || 'Amber Dunes',
+      'cyber-harbor': ui.optSceneCyberHarbor || 'Neon Harbor',
+      'lantern-forest': ui.optSceneLanternForest || 'Firefly Grove',
     };
     return map[sceneId] || map.auto;
   }
@@ -2066,7 +2070,18 @@
     sceneBtn.type = 'button';
     sceneBtn.className = 'ag-cs-fm-btn ag-cs-fm-scene';
     sceneBtn.addEventListener('click', () => {
-      const list = claudeFmCore?.CLAUDE_FM_SCENES || ['auto', 'valley', 'rainy-city', 'alpine-stars', 'ocean-lighthouse', 'sakura-trail'];
+      const list = claudeFmCore?.CLAUDE_FM_SCENES || [
+        'auto',
+        'valley',
+        'rainy-city',
+        'alpine-stars',
+        'ocean-lighthouse',
+        'sakura-trail',
+        'midnight-train',
+        'desert-dunes',
+        'cyber-harbor',
+        'lantern-forest',
+      ];
       const cur = claudeFmCore ? claudeFmCore.normalizeScene(cfg.claudeFmScene) : 'auto';
       const next = list[(list.indexOf(cur) + 1) % list.length];
       saveSetting('claudeFmScene', next);
@@ -5890,7 +5905,9 @@
       claudeFmScene: {
         key: 'claudeFmScene',
         title: ui.setFmSceneTitle || 'Claude FM Scene',
-        desc: ui.setFmSceneDesc || 'Auto-cycle all 5 animated ASCII scenes or pin Misty Valley, Rainy City, Starry Alpine, Lighthouse, or Sakura Trail.',
+        desc:
+          ui.setFmSceneDesc ||
+          'Auto-cycle all 9 animated ASCII scenes or pin Valley, Rainy City, Alpine, Lighthouse, Sakura, Night Train, Amber Dunes, Neon Harbor, or Firefly Grove.',
         opts: [
           ['auto', ui.optSceneAuto || 'Auto'],
           ['valley', ui.optSceneValley || 'Valley'],
@@ -5898,6 +5915,10 @@
           ['alpine-stars', ui.optSceneAlpineStars || 'Alpine'],
           ['ocean-lighthouse', ui.optSceneOcean || 'Lighthouse'],
           ['sakura-trail', ui.optSceneSakura || 'Sakura'],
+          ['midnight-train', ui.optSceneMidnightTrain || 'Night Train'],
+          ['desert-dunes', ui.optSceneDesertDunes || 'Amber Dunes'],
+          ['cyber-harbor', ui.optSceneCyberHarbor || 'Neon Harbor'],
+          ['lantern-forest', ui.optSceneLanternForest || 'Firefly Grove'],
         ],
       },
       claudeFmBar: {

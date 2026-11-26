@@ -520,7 +520,12 @@ html[data-ag-cs-style] .ag-cs-claude-fm-host[data-ag-cs-fm-surface="chat"]::afte
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: color-mix(in srgb, var(--ag-cs-canvas) 36%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--ag-cs-canvas) 28%, transparent) 0%,
+    color-mix(in srgb, var(--ag-cs-canvas) 20%, transparent) 66%,
+    transparent 84%
+  );
 }
 
 html[data-ag-cs-style] .ag-cs-ripple-canvas,
@@ -1138,17 +1143,20 @@ html[data-ag-cs-style][data-ag-cs-composer="on"] .surface-composer-card > div.re
 }
 
 html[data-ag-cs-style][data-ag-cs-composer="on"]:is([data-ag-cs-live-bg="claude-fm"], [data-ag-cs-live-bg="youtube"]) .agy-home .surface-composer-card > div.relative.w-full {
-  background: color-mix(in srgb, var(--ag-cs-composer-bg) 50%, transparent) !important;
-  backdrop-filter: blur(12px) saturate(1.15);
-  -webkit-backdrop-filter: blur(12px) saturate(1.15);
-  border: 1px solid var(--ag-cs-pill-border, var(--ag-cs-border-2)) !important;
+  background: color-mix(in srgb, var(--ag-cs-composer-bg) 18%, transparent) !important;
+  backdrop-filter: blur(1.5px) saturate(1.06);
+  -webkit-backdrop-filter: blur(1.5px) saturate(1.06);
+  border: 1px solid color-mix(in srgb, var(--ag-cs-pill-border, var(--ag-cs-border-2)) 72%, transparent) !important;
   padding: 10px 42px 10px 14px !important;
+  text-shadow: 0 1px 2px color-mix(in srgb, var(--ag-cs-canvas) 65%, transparent);
 }
 
 html[data-ag-cs-style][data-ag-cs-composer="on"]:is([data-ag-cs-live-bg="claude-fm"], [data-ag-cs-live-bg="youtube"]) [data-testid="conversation-view"] .surface-composer-card > div.relative.w-full {
-  background: color-mix(in srgb, var(--ag-cs-composer-bg) 72%, transparent) !important;
-  backdrop-filter: blur(12px) saturate(1.15);
-  -webkit-backdrop-filter: blur(12px) saturate(1.15);
+  background: color-mix(in srgb, var(--ag-cs-composer-bg) 18%, transparent) !important;
+  backdrop-filter: blur(1.5px) saturate(1.06);
+  -webkit-backdrop-filter: blur(1.5px) saturate(1.06);
+  border: 1px solid color-mix(in srgb, var(--ag-cs-pill-border, var(--ag-cs-border-2)) 72%, transparent) !important;
+  text-shadow: 0 1px 2px color-mix(in srgb, var(--ag-cs-canvas) 65%, transparent);
 }
 
 html[data-ag-cs-style][data-ag-cs-composer="on"] .surface-composer-card:focus-within > div.relative.w-full {
@@ -1253,10 +1261,11 @@ html[data-ag-cs-style][data-ag-cs-composer="on"][data-ag-cs-live-bg="youtube"] .
   min-height: 30px !important;
   padding: 0 8px !important;
   border-radius: 10px !important;
-  background: color-mix(in srgb, var(--ag-cs-composer-bg) 56%, transparent) !important;
-  border: 1px solid var(--ag-cs-pill-border, var(--ag-cs-border-1)) !important;
-  backdrop-filter: blur(12px) saturate(1.15);
-  -webkit-backdrop-filter: blur(12px) saturate(1.15);
+  background: color-mix(in srgb, var(--ag-cs-composer-bg) 16%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--ag-cs-pill-border, var(--ag-cs-border-1)) 68%, transparent) !important;
+  backdrop-filter: blur(1.5px) saturate(1.06);
+  -webkit-backdrop-filter: blur(1.5px) saturate(1.06);
+  text-shadow: 0 1px 2px color-mix(in srgb, var(--ag-cs-canvas) 70%, transparent);
 }
 
 /* Flatten inner wrappers cleanly without touching React nodes */

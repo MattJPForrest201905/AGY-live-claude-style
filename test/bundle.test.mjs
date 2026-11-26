@@ -4969,6 +4969,18 @@ test('Claude FM live background, YouTube mode, top-bar music controls, mascot mu
     assert.equal(html.getAttribute('data-ag-cs-fm-scene'), 'rainy-city');
     assert.equal(sceneBtn.textContent, 'Rainy City');
 
+    // New scenes update attributes and localized top-bar labels cleanly
+    for (const [scId, label] of [
+      ['midnight-train', 'Night Train'],
+      ['desert-dunes', 'Amber Dunes'],
+      ['cyber-harbor', 'Neon Harbor'],
+      ['lantern-forest', 'Firefly Grove'],
+    ]) {
+      sandbox.window.__agClaudeStyle.refreshConfig({ ...cdp.DEFAULT_CONFIG, language: 'en', palette: 'claude', claudeFmSource: 'synth', claudeFmScene: scId });
+      assert.equal(html.getAttribute('data-ag-cs-fm-scene'), scId);
+      assert.equal(sceneBtn.textContent, label);
+    }
+
     // Toggle mute & motion pause
     muteBtn.dispatch('click');
     assert.equal(bar.getAttribute('data-muted'), '1');

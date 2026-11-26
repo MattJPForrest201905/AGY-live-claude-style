@@ -41,6 +41,10 @@ test('normalization helpers, scene resolution, and YouTube URL/command builders 
     'alpine-stars',
     'ocean-lighthouse',
     'sakura-trail',
+    'midnight-train',
+    'desert-dunes',
+    'cyber-harbor',
+    'lantern-forest',
   ]);
 
   assert.equal(fmCore.normalizeLiveBackground('claude-fm'), 'claude-fm');
@@ -116,7 +120,7 @@ test('resolveClaudeFmPalette provides authentic parchment light and obsidian/cla
   assert.equal(claudeDark.accent, '#D97757');
 });
 
-test('createClaudeFmScene renders all 5 distinct scenes, Clawd variants, auto crossfades, and gusts cleanly', () => {
+test('createClaudeFmScene renders all 9 distinct scenes, Clawd variants, auto crossfades, and gusts cleanly', () => {
   const ctx = createMockCtx();
   const canvas = createMockCanvas(ctx);
   let reduced = false;
@@ -133,7 +137,7 @@ test('createClaudeFmScene renders all 5 distinct scenes, Clawd variants, auto cr
   assert.doesNotThrow(() => scene.renderFrame(0));
   assert.equal(ctx.ops.length, 0);
 
-  // Full 16:9 viewport render across all 5 scenes
+  // Full 16:9 viewport render across all 9 scenes
   scene.resize(960, 540, 2);
   assert.equal(canvas.width, 1920);
   assert.equal(canvas.height, 1080);
@@ -144,6 +148,10 @@ test('createClaudeFmScene renders all 5 distinct scenes, Clawd variants, auto cr
     'alpine-stars': (glyphs) => glyphs.includes('✦') && glyphs.includes('^'),
     'ocean-lighthouse': (glyphs) => glyphs.includes('~') && glyphs.includes('◉'),
     'sakura-trail': (glyphs) => (glyphs.includes('❀') || glyphs.includes('✿')) && glyphs.includes('╤'),
+    'midnight-train': (glyphs) => glyphs.includes('╔') && glyphs.includes('═') && glyphs.includes('▪') && glyphs.includes('~'),
+    'desert-dunes': (glyphs) => glyphs.includes('░') && glyphs.includes('▒') && glyphs.includes('~') && glyphs.includes('─'),
+    'cyber-harbor': (glyphs) => glyphs.includes('◈') && glyphs.includes('◇') && glyphs.includes('≡') && glyphs.includes('▓'),
+    'lantern-forest': (glyphs) => glyphs.includes('║') && glyphs.includes('♦') && glyphs.includes('✦') && glyphs.includes('╬'),
   };
 
   for (const scId of fmCore.SCENE_CYCLE_ORDER) {
@@ -160,6 +168,42 @@ test('createClaudeFmScene renders all 5 distinct scenes, Clawd variants, auto cr
     assert.ok(textGlyphs.length > 40, `renders rich ASCII scene glyphs in ${scId}`);
     assert.ok(expectedGlyphsByScene[scId](textGlyphs), `scene ${scId} renders its signature ASCII motifs`);
   }
+
+  // Rich gradient-capable context + interactive hop & sparks near Clawd + pointer wake
+  let linearGradCalls = 0;
+  let radialGradCalls = 0;
+  const richCtx = {
+    ...createMockCtx(),
+    createLinearGradient() {
+      linearGradCalls++;
+      return { addColorStop() {} };
+    },
+    createRadialGradient() {
+      radialGradCalls++;
+      return { addColorStop() {} };
+    },
+  };
+  const richScene = fmCore.createClaudeFmScene(createMockCanvas(richCtx), {
+    palette: 'obsidian',
+    scene: 'lantern-forest',
+    isDark: true,
+    audioActive: true,
+  });
+  richScene.resize(960, 540, 1);
+  richScene.setPointerOffset(0.35, -0.2);
+  richScene.renderFrame(2.5);
+  richScene.triggerGust(480, 440);
+  richScene.renderFrame(2.8);
+  assert.ok(linearGradCalls >= 1, 'draws atmospheric sky linear gradients when available');
+  assert.ok(radialGradCalls >= 1, 'draws radial light blooms when available');
+  for (const isDark of [false, true]) {
+    richScene.setPalette(isDark ? 'obsidian' : 'claude', isDark);
+    for (const scId of fmCore.SCENE_CYCLE_ORDER) {
+      richScene.setScene(scId);
+      assert.doesNotThrow(() => richScene.renderFrame(3.2));
+    }
+  }
+  richScene.dispose();
 
   // Auto-cycle crossfade at t=44.25s blends valley -> rainy-city without throwing
   scene.setScene('auto');
